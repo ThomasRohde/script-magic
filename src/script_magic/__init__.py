@@ -50,12 +50,29 @@ def sync():
         logger.error(f"Error during manual sync: {str(e)}", exc_info=True)
         sys.exit(1)
 
+@click.command()
+def pull():
+    """Pull the latest mapping from GitHub."""
+    try:
+        console.print("[bold blue]Pulling mapping from GitHub...[/bold blue]")
+        mapping_manager = get_mapping_manager()
+        
+        if mapping_manager.pull_mapping():
+            console.print("[bold green]✓ Mapping pulled successfully![/bold green]")
+        else:
+            console.print("[bold yellow]⚠ Could not pull mapping from GitHub[/bold yellow]")
+    except Exception as e:
+        console.print(f"[bold red]Error pulling mapping:[/bold red] {str(e)}")
+        logger.error(f"Error during pull: {str(e)}", exc_info=True)
+        sys.exit(1)
+
 # Register commands
 sm.add_command(create_command, name='create')
 sm.add_command(run_command, name='run')
 sm.add_command(list_command, name='list')
 sm.add_command(delete_command, name='delete')
 sm.add_command(sync, name='sync')
+sm.add_command(pull, name='pull')
 
 if __name__ == '__main__':
     sm()
