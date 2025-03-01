@@ -8,12 +8,19 @@ from typing import Dict, List, Optional, Any
 
 # Import the logger from our logger module
 from script_magic.logger import get_logger
+# Import GitHub integration for gist operations
+from script_magic.github_integration import (
+    sync_mapping_file, 
+    get_mapping_from_gist, 
+    GitHubIntegrationError
+)
 
 logger = get_logger(__name__)
 
 # Default paths and constants
 DEFAULT_MAPPING_DIR = os.path.expanduser("~/.sm")
 DEFAULT_MAPPING_FILE = os.path.join(DEFAULT_MAPPING_DIR, "mapping.json")
+GIST_ID_FILE = os.path.join(DEFAULT_MAPPING_DIR, "gist_id.txt")
 
 class MappingManager:
     def __init__(self, mapping_file: str = DEFAULT_MAPPING_FILE):
@@ -24,10 +31,40 @@ class MappingManager:
             mapping_file: Path to the mapping file (default: ~/.sm/mapping.json)
         """
         self.mapping_file = mapping_file
+        self.gist_id = None
         self._ensure_mapping_file_exists()
+        self._load_gist_id()
+    
+    def _load_gist_id(self) -> None:
+        """Load the GitHub Gist ID from the gist_id file if it exists."""
+        try:
+            if os.path.exists(GIST_ID_FILE):
+                with open(GIST_ID_FILE, 'r') as f:
+                    self.gist_id = f.read().strip()
+                logger.debug(f"Loaded mapping Gist ID: {self.gist_id}")
+        except Exception as e:
+            logger.error(f"Failed to load Gist ID: {str(e)}")
+            self.gist_id = None
+    
+    def _save_gist_id(self, gist_id: str) -> None:
+        """Save the GitHub Gist ID to a file."""
+        try:
+            mapping_dir = os.path.dirname(GIST_ID_FILE)
+            if not os.path.exists(mapping_dir):
+                os.makedirs(mapping_dir)
+                
+            with open(GIST_ID_FILE, 'w') as f:
+                f.write(gist_id)
+            self.gist_id = gist_id
+            logger.debug(f"Saved mapping Gist ID: {gist_id}")
+        except Exception as e:
+            logger.error(f"Failed to save Gist ID: {str(e)}")
     
     def _ensure_mapping_file_exists(self) -> None:
-        """Ensure that the mapping file and its directory exist."""
+        """
+        Ensure that the mapping file and its directory exist.
+        If no local mapping file exists, try to download from GitHub if gist_id is available.
+        """
         mapping_dir = os.path.dirname(self.mapping_file)
         
         try:
@@ -35,6 +72,16 @@ class MappingManager:
             if not os.path.exists(mapping_dir):
                 logger.info(f"Creating mapping directory: {mapping_dir}")
                 os.makedirs(mapping_dir)
+            
+            # Try to load from GitHub first if we have a gist ID
+            if os.path.exists(GIST_ID_FILE) and not os.path.exists(self.mapping_file):
+                self._load_gist_id()
+                if self.gist_id:
+                    try:
+                        self._sync_from_github()
+                        return
+                    except Exception as e:
+                        logger.error(f"Failed to load mapping from GitHub: {str(e)}")
             
             # Create the mapping file if it doesn't exist
             if not os.path.exists(self.mapping_file):
@@ -80,6 +127,55 @@ class MappingManager:
         except Exception as e:
             logger.error(f"Error writing to mapping file: {str(e)}")
             raise
+    
+    def _sync_to_github(self) -> None:
+        """
+        Sync the local mapping file to GitHub.
+        If no gist_id exists, create a new gist.
+        """
+        try:
+            mapping_data = self._read_mapping()
+            gist_id = sync_mapping_file(mapping_data, self.gist_id)
+            
+            if not self.gist_id:
+                self._save_gist_id(gist_id)
+                logger.info(f"Created new mapping Gist with ID: {gist_id}")
+            else:
+                logger.info(f"Updated mapping Gist with ID: {gist_id}")
+            
+            # Update the last_synced timestamp
+            mapping_data["last_synced"] = datetime.datetime.now().isoformat()
+            self._write_mapping(mapping_data)
+            
+        except GitHubIntegrationError as e:
+            logger.error(f"GitHub integration error while syncing mapping: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error syncing mapping to GitHub: {str(e)}")
+            raise
+    
+    def _sync_from_github(self) -> bool:
+        """
+        Download and update the local mapping file from GitHub.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.gist_id:
+            logger.warning("No Gist ID available for mapping sync")
+            return False
+        
+        try:
+            mapping_data = get_mapping_from_gist(self.gist_id)
+            self._write_mapping(mapping_data)
+            logger.info(f"Successfully synced mapping from GitHub Gist {self.gist_id}")
+            return True
+        except GitHubIntegrationError as e:
+            logger.error(f"GitHub integration error while loading mapping: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Error syncing mapping from GitHub: {str(e)}")
+            return False
     
     def add_script(self, script_name: str, gist_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -188,25 +284,38 @@ class MappingManager:
     
     def sync_mapping(self) -> bool:
         """
-        Sync the mapping file with remote storage (e.g., GitHub Gist).
-        This is a placeholder for actual sync implementation.
+        Sync the mapping file with GitHub Gist.
+        If no gist_id is available, create a new gist.
         
         Returns:
             True if successful, False otherwise
         """
         try:
-            # This would be implemented to sync with GitHub
-            # For now, just update the last_synced timestamp
-            mapping_data = self._read_mapping()
-            mapping_data["last_synced"] = datetime.datetime.now().isoformat()
-            self._write_mapping(mapping_data)
-            
-            logger.info("Updated mapping sync timestamp")
-            logger.warning("Note: Actual GitHub sync not yet implemented")
+            # Sync to GitHub
+            self._sync_to_github()
+            logger.info("Mapping successfully synced to GitHub")
             return True
         except Exception as e:
             logger.error(f"Error syncing mapping: {str(e)}")
             return False
+
+    def initialize_from_github(self) -> bool:
+        """
+        Try to initialize the mapping from GitHub.
+        This can be used during first-time setup to search for and use
+        an existing mapping Gist.
+        
+        Returns:
+            bool: True if successful, False if no GitHub mapping was found
+        """
+        # If we already have a Gist ID, just sync from it
+        if self.gist_id:
+            return self._sync_from_github()
+        
+        # This would be implemented in a separate function to search for mapping Gists
+        # For now, just return False since we can't find a Gist without an ID
+        logger.warning("No existing mapping Gist ID found. Use sync_mapping() to create one.")
+        return False
 
     def get_script_info(self, script_name: str) -> dict:
         """
