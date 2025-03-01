@@ -144,27 +144,27 @@ class MappingManager:
             logger.error(f"Error syncing mapping to GitHub: {str(e)}")
             raise
     
-    def _sync_from_github(self) -> bool:
+    def pull_mapping(self) -> bool:
         """
-        Download and update the local mapping file from GitHub.
+        Pull the mapping from GitHub Gist and update the local mapping file.
         
         Returns:
             bool: True if successful, False otherwise
         """
         if not self.gist_id:
-            logger.warning("No Gist ID available for mapping sync")
+            logger.warning("No Gist ID available for pulling mapping")
             return False
-        
+            
         try:
             mapping_data = get_mapping_from_gist(self.gist_id)
             self._write_mapping(mapping_data)
-            logger.info(f"Successfully synced mapping from GitHub Gist {self.gist_id}")
+            logger.info(f"Successfully pulled mapping from GitHub Gist {self.gist_id}")
             return True
         except GitHubIntegrationError as e:
-            logger.error(f"GitHub integration error while loading mapping: {str(e)}")
+            logger.error(f"GitHub integration error while pulling mapping: {str(e)}")
             return False
         except Exception as e:
-            logger.error(f"Error syncing mapping from GitHub: {str(e)}")
+            logger.error(f"Error pulling mapping from GitHub: {str(e)}")
             return False
     
     def add_script(self, script_name: str, gist_id: str, metadata: Optional[Dict[str, Any]] = None, sync: bool = True) -> None:
@@ -311,7 +311,7 @@ class MappingManager:
         """
         # If we already have a Gist ID, just sync from it
         if self.gist_id:
-            return self._sync_from_github()
+            return self.pull_mapping()
         
         # This would be implemented in a separate function to search for mapping Gists
         # For now, just return False since we can't find a Gist without an ID
@@ -431,7 +431,7 @@ _mapping_manager_instance = None
 def get_mapping_manager(mapping_file: str = DEFAULT_MAPPING_FILE) -> MappingManager:
     """Get a MappingManager instance with the given mapping file."""
     global _mapping_manager_instance
-    if _mapping_manager_instance is None:
+    if (_mapping_manager_instance is None):
         # Try to import here to avoid circular imports
         try:
             from script_magic.mapping_setup import setup_mapping
