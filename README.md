@@ -74,6 +74,36 @@ Force refresh from GitHub before running:
 sm run hello-world --refresh
 ```
 
+### List Command
+
+The `list` command displays all scripts available in your inventory.
+
+```bash
+script-magic list
+```
+
+#### Options
+
+- `--verbose`, `-v`: Show detailed information about each script, including Gist ID, creation date, and tags.
+- `--tag`, `-t`: Filter scripts by tag. Can be specified multiple times to filter by multiple tags.
+
+#### Examples
+
+List all scripts:
+```bash
+script-magic list
+```
+
+Show detailed information:
+```bash
+script-magic list --verbose
+```
+
+Filter scripts by tag:
+```bash
+script-magic list --tag python --tag backup
+```
+
 ## Configuration
 
 Script Magic stores configuration in the `~/.sm` directory:
