@@ -24,9 +24,9 @@ LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 root_logger = logging.getLogger("script-magic")
 root_logger.setLevel(logging.INFO)
 
-# Create console handler
+# Create console handler - setting to WARNING instead of INFO to reduce console output
 console_handler = logging.StreamHandler(stream=sys.stdout)
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.WARNING)  # Only warnings and errors to console by default
 console_formatter = logging.Formatter(LOG_FORMAT, LOG_DATE_FORMAT)
 console_handler.setFormatter(console_formatter)
 
@@ -80,6 +80,20 @@ def set_log_level(level: int) -> None:
         handler.setLevel(level)
     
     root_logger.debug(f"Log level set to {logging.getLevelName(level)}")
+
+def set_console_log_level(level: int) -> None:
+    """
+    Set the log level for console output only.
+    
+    Args:
+        level: Logging level (e.g. logging.DEBUG, logging.INFO)
+    """
+    for handler in root_logger.handlers:
+        if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
+            handler.setLevel(level)
+            break
+    
+    root_logger.debug(f"Console log level set to {logging.getLevelName(level)}")
 
 def create_init_file():
     """Create an __init__.py file in the logs directory to make it a proper package."""

@@ -30,9 +30,10 @@ def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbo
     try:
         # Set up more verbose logging if requested
         if verbose:
-            from script_magic.logger import set_log_level
+            from script_magic.logger import set_log_level, set_console_log_level
             import logging
             set_log_level(logging.DEBUG)
+            set_console_log_level(logging.INFO)  # Show INFO messages in console when verbose
             logger.debug("Verbose mode enabled")
         
         logger.info(f"Running script '{script_name}'")
