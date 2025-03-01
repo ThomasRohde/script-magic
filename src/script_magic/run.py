@@ -4,13 +4,12 @@ Implementation for the 'run' command to execute scripts stored in GitHub Gists.
 import os
 import sys
 import click
-import tempfile
 import subprocess
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Tuple
 
-from utils.mapping_manager import get_mapping_manager
-from utils.logger import get_logger
-from integrations.github_integration import download_script_from_gist, GitHubIntegrationError
+from mapping_manager import get_mapping_manager
+from logger import get_logger
+from github_integration import download_script_from_gist, GitHubIntegrationError
 
 # Set up logger for this module
 logger = get_logger(__name__)
@@ -31,7 +30,7 @@ def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbo
     try:
         # Set up more verbose logging if requested
         if verbose:
-            from utils.logger import set_log_level
+            from logger import set_log_level
             import logging
             set_log_level(logging.DEBUG)
             logger.debug("Verbose mode enabled")

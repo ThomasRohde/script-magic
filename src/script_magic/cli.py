@@ -1,14 +1,12 @@
 """
 Script Magic CLI - Main entry point for the script-magic application.
 """
-import os
-import sys
 import click
 
 # Import command implementations
-from commands.create import cli as create_command
-from commands.run import cli as run_command
-from commands.list import cli as list_command
+from create import cli as create_command
+from run import cli as run_command
+from list import cli as list_command
 
 @click.group()
 def sm():

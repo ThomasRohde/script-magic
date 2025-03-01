@@ -8,16 +8,15 @@ uploading them to GitHub Gists, and managing the local mapping.
 import os
 import sys
 import click
-from typing import Dict, Optional
 
 # Import integration modules
-from integrations.pydantic_ai_integration import (
+from pydantic_ai_integration import (
     process_prompt, display_script, interactive_refinement
 )
-from integrations.github_integration import upload_script_to_gist, GitHubIntegrationError
-from utils.mapping_manager import get_mapping_manager
-from utils.rich_output import console, display_heading
-from utils.logger import get_logger
+from github_integration import upload_script_to_gist, GitHubIntegrationError
+from mapping_manager import get_mapping_manager
+from rich_output import console, display_heading
+from logger import get_logger
 
 # Set up logger
 logger = get_logger(__name__)

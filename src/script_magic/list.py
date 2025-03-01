@@ -7,15 +7,14 @@ This module handles listing all available scripts from the local mapping.
 import click
 import sys
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List
 
-from utils.mapping_manager import get_mapping_manager
-from utils.rich_output import console
+from mapping_manager import get_mapping_manager
+from rich_output import console
 from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
 from rich import box
-from utils.logger import get_logger
+from logger import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
