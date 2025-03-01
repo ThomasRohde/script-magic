@@ -7,24 +7,16 @@ import click
 
 # Import command implementations
 from commands.create import cli as create_command
+from commands.run import cli as run_command
 
 @click.group()
 def sm():
     """Script Magic - A tool for creating and running Python scripts with GitHub Gists."""
     pass
 
-# Register the create command
+# Register commands
 sm.add_command(create_command, name='create')
-
-@sm.command()
-@click.argument('script_name')
-@click.argument('params', nargs=-1)
-def run(script_name, params):
-    """Run a Python script stored in a GitHub Gist."""
-    # This will be replaced with actual implementation from commands/run.py
-    click.echo(f"Running script '{script_name}'")
-    if params:
-        click.echo(f"With parameters: {params}")
+sm.add_command(run_command, name='run')
 
 if __name__ == '__main__':
     sm()

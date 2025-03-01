@@ -6,15 +6,12 @@ with support for interactive refinement and PEP 723 metadata inclusion.
 """
 import os
 import re
-from typing import Optional, Tuple, Dict
+from typing import Optional, Dict
 from datetime import datetime
 
 from pydantic_ai import Agent
 from pydantic import BaseModel
 
-# Import Rich utilities
-from rich.console import Console
-from rich.syntax import Syntax
 try:
     from ..utils.rich_output import display_code, display_heading
 except ImportError:

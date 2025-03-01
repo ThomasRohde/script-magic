@@ -5,7 +5,6 @@ import json
 import logging
 from typing import Dict, Optional, Tuple, Any
 from github import Github, GithubException
-from github.Gist import Gist
 from github.InputFileContent import InputFileContent
 
 # Set up logger
