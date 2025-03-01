@@ -208,6 +208,46 @@ class MappingManager:
             logger.error(f"Error syncing mapping: {str(e)}")
             return False
 
+    def get_script_info(self, script_name: str) -> dict:
+        """
+        Get information about a specific script.
+        
+        Args:
+            script_name: Name of the script
+            
+        Returns:
+            dict: Script information or None if not found
+        """
+        scripts = self.list_scripts()
+        for script in scripts:
+            if script["name"] == script_name:
+                return script
+        return None
+    
+    def remove_script(self, script_name: str) -> bool:
+        """
+        Remove a script from the local mapping.
+        
+        Args:
+            script_name: Name of the script to remove
+            
+        Returns:
+            bool: True if script was found and removed, False otherwise
+        """
+        # Load current mapping
+        mapping = self._read_mapping()
+        
+        # Check if script exists
+        if script_name not in mapping.get('scripts', {}):
+            return False
+            
+        # Remove script entry
+        del mapping['scripts'][script_name]
+        
+        # Save updated mapping
+        self._write_mapping(mapping)
+        return True
+
 # Helper functions for easier import/use
 def get_mapping_manager(mapping_file: str = DEFAULT_MAPPING_FILE) -> MappingManager:
     """Get a MappingManager instance with the given mapping file."""
