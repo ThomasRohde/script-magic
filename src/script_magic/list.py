@@ -78,13 +78,14 @@ def format_scripts_table(scripts: List[Dict[str, Any]], verbose: bool = False) -
     
     return table
 
-def list_scripts(verbose: bool = False, sync: bool = False) -> bool:
+def list_scripts(verbose: bool = False, push: bool = False, pull: bool = False) -> bool:
     """
     List all scripts in the inventory.
     
     Args:
         verbose: Whether to show detailed information
-        sync: Whether to sync with GitHub before listing
+        push: Whether to push local mapping to GitHub before listing
+        pull: Whether to pull mapping from GitHub before listing
         
     Returns:
         bool: True if successful, False otherwise
@@ -92,13 +93,21 @@ def list_scripts(verbose: bool = False, sync: bool = False) -> bool:
     try:
         mapping_manager = get_mapping_manager()
         
-        # Sync with GitHub first if requested
-        if sync:
-            console.print(Panel("Syncing mapping with GitHub...", border_style="blue"))
+        # Push to GitHub if requested
+        if push:
+            console.print(Panel("Pushing mapping to GitHub...", border_style="blue"))
             if mapping_manager.sync_mapping():
-                console.print(Panel("✓ Mapping synced successfully", border_style="green"))
+                console.print(Panel("✓ Mapping pushed successfully", border_style="green"))
             else:
-                console.print(Panel("⚠ Could not sync mapping with GitHub", border_style="yellow"))
+                console.print(Panel("⚠ Could not push mapping to GitHub", border_style="yellow"))
+        
+        # Pull from GitHub if requested
+        if pull:
+            console.print(Panel("Pulling mapping from GitHub...", border_style="blue"))
+            if mapping_manager.pull_mapping():
+                console.print(Panel("✓ Mapping pulled successfully", border_style="green"))
+            else:
+                console.print(Panel("⚠ Could not pull mapping from GitHub", border_style="yellow"))
         
         # Get all scripts
         scripts = mapping_manager.list_scripts()
@@ -169,15 +178,18 @@ def list_scripts(verbose: bool = False, sync: bool = False) -> bool:
 
 @click.command()
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed information about scripts')
-@click.option('--sync', '-s', is_flag=True, help='Sync with GitHub before listing scripts')
-def cli(verbose: bool, sync: bool) -> None:
+@click.option('--push', is_flag=True, help='Push local mapping to GitHub before listing scripts')
+@click.option('--pull', is_flag=True, help='Pull mapping from GitHub before listing scripts')
+def cli(verbose: bool, push: bool, pull: bool) -> None:
     """
     List all scripts in your inventory.
     
     Shows a table of all available scripts with their descriptions.
     Use --verbose to see more details like Gist IDs and creation dates.
+    Use --push to sync local mapping to GitHub before listing.
+    Use --pull to fetch the latest mapping from GitHub before listing.
     """
-    success = list_scripts(verbose, sync)
+    success = list_scripts(verbose, push, pull)
     if not success:
         sys.exit(1)
 

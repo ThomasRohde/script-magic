@@ -146,7 +146,7 @@ class MappingManager:
     
     def pull_mapping(self) -> bool:
         """
-        Pull the mapping from GitHub Gist and update the local mapping file.
+        Pull the mapping from GitHub.
         
         Returns:
             bool: True if successful, False otherwise
