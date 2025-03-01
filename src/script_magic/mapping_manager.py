@@ -7,7 +7,7 @@ import datetime
 from typing import Dict, List, Optional, Any
 
 # Import the logger from our logger module
-from logger import get_logger
+from script_magic.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -7,9 +7,9 @@ import click
 import subprocess
 from typing import List, Tuple
 
-from mapping_manager import get_mapping_manager
-from logger import get_logger
-from github_integration import download_script_from_gist, GitHubIntegrationError
+from script_magic.mapping_manager import get_mapping_manager
+from script_magic.logger import get_logger
+from script_magic.github_integration import download_script_from_gist, GitHubIntegrationError
 
 # Set up logger for this module
 logger = get_logger(__name__)
@@ -30,7 +30,7 @@ def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbo
     try:
         # Set up more verbose logging if requested
         if verbose:
-            from logger import set_log_level
+            from script_magic.logger import set_log_level
             import logging
             set_log_level(logging.DEBUG)
             logger.debug("Verbose mode enabled")

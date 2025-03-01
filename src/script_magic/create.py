@@ -10,13 +10,13 @@ import sys
 import click
 
 # Import integration modules
-from pydantic_ai_integration import (
+from script_magic.pydantic_ai_integration import (
     process_prompt, display_script, interactive_refinement
 )
-from github_integration import upload_script_to_gist, GitHubIntegrationError
-from mapping_manager import get_mapping_manager
-from rich_output import console, display_heading
-from logger import get_logger
+from script_magic.github_integration import upload_script_to_gist, GitHubIntegrationError
+from script_magic.mapping_manager import get_mapping_manager
+from script_magic.rich_output import console, display_heading
+from script_magic.logger import get_logger
 
 # Set up logger
 logger = get_logger(__name__)

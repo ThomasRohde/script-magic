@@ -13,13 +13,13 @@ from pydantic_ai import Agent
 from pydantic import BaseModel
 
 try:
-    from rich_output import display_code, display_heading
+    from script_magic.rich_output import display_code, display_heading
 except ImportError:
     # Fallback for direct module execution
     import sys
     import pathlib
     sys.path.append(str(pathlib.Path(__file__).parent.parent))
-    from rich_output import display_code, display_heading
+    from script_magic.rich_output import display_code, display_heading
 
 # Check for required environment variables
 if not os.getenv("OPENAI_API_KEY"):
