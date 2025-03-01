@@ -74,34 +74,38 @@ Force refresh from GitHub before running:
 sm run hello-world --refresh
 ```
 
-### List Command
+### Listing Scripts
 
-The `list` command displays all scripts available in your inventory.
+View all scripts in your inventory:
 
 ```bash
-script-magic list
+sm list
 ```
 
-#### Options
+Show detailed information about your scripts:
 
-- `--verbose`, `-v`: Show detailed information about each script, including Gist ID, creation date, and tags.
-- `--tag`, `-t`: Filter scripts by tag. Can be specified multiple times to filter by multiple tags.
-
-#### Examples
-
-List all scripts:
 ```bash
-script-magic list
-```
-
-Show detailed information:
-```bash
-script-magic list --verbose
+sm list --verbose
 ```
 
 Filter scripts by tag:
+
 ```bash
-script-magic list --tag python --tag backup
+sm list --tag python --tag backup
+```
+
+### Deleting Scripts
+
+Remove a script from both local inventory and GitHub Gists:
+
+```bash
+sm delete script-name
+```
+
+Force deletion without confirmation:
+
+```bash
+sm delete script-name --force
 ```
 
 ## Configuration
@@ -109,24 +113,25 @@ script-magic list --tag python --tag backup
 Script Magic stores configuration in the `~/.sm` directory:
 
 - `~/.sm/config.json`: Main configuration file
-- `~/.sm/scripts/`: Local cache of downloaded scripts
+- `~/.sm/logs/`: Log files for debugging
 - `~/.sm/mapping.json`: Maps script names to GitHub Gist IDs
 
 ## Structure
 
 ```
 script-magic/
-├── cli.py                     # Main CLI entry point
-├── commands/                  # Command implementations
-│   ├── create.py              # Script creation command
-│   └── run.py                 # Script execution command
-├── integrations/              # External service integrations
-│   ├── github_integration.py  # GitHub Gist API integration
-│   └── pydantic_ai_integration.py  # AI script generation
-└── utils/                     # Utility modules
-    ├── logger.py              # Logging configuration
-    ├── mapping_manager.py     # Script mapping management
-    └── rich_output.py         # Terminal output formatting
+├── src/
+│   └── script_magic/
+│       ├── __init__.py             # CLI entry point with command registration
+│       ├── create.py               # Script creation command
+│       ├── run.py                  # Script execution command
+│       ├── list.py                 # Script listing command
+│       ├── delete.py               # Script deletion command
+│       ├── github_integration.py   # GitHub Gist API integration
+│       ├── pydantic_ai_integration.py  # AI script generation
+│       ├── mapping_manager.py      # Script mapping management
+│       ├── logger.py               # Logging configuration
+│       └── rich_output.py          # Terminal output formatting
 ```
 
 ## Environment Variables
