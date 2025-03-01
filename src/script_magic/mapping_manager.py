@@ -55,7 +55,7 @@ class MappingManager:
             Dict containing the mapping data
         """
         try:
-            with open(self.mapping_file, 'r') as f:
+            with open(self.mapping_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except FileNotFoundError:
             logger.warning(f"Mapping file not found at {self.mapping_file}")
@@ -75,8 +75,8 @@ class MappingManager:
             mapping_data: Dictionary containing the mapping data
         """
         try:
-            with open(self.mapping_file, 'w') as f:
-                json.dump(mapping_data, f, indent=2)
+            with open(self.mapping_file, 'w', encoding='utf-8') as f:
+                json.dump(mapping_data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error writing to mapping file: {str(e)}")
             raise

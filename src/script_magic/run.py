@@ -101,8 +101,8 @@ def lookup_script(script_name: str, refresh: bool = False) -> Tuple[str, str]:
             # Download the script from GitHub
             script_content, _ = download_script_from_gist(gist_id)
             
-            # Save the script to a file
-            with open(script_path, 'w') as f:
+            # Save the script to a file with UTF-8 encoding
+            with open(script_path, 'w', encoding='utf-8') as f:
                 f.write(script_content)
                 
             logger.info(f"Script downloaded to {script_path}")
@@ -134,11 +134,12 @@ def execute_script_with_uv(script_path: str, params: List[str]) -> None:
     logger.debug(f"Executing command: {' '.join(cmd)}")
     
     try:
-        # Execute the script and capture the output
+        # Execute the script and capture the output with UTF-8 encoding
         process = subprocess.run(
             cmd,
             text=True,
-            capture_output=True
+            capture_output=True,
+            encoding='utf-8'
         )
         
         # Display the output
