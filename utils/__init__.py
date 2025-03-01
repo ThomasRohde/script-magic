@@ -1,1 +1,1 @@
-# Package initialization file
+"""Utility functions for Script-Magic."""
