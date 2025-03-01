@@ -61,6 +61,13 @@ script_agent = Agent(
     # Generated from the prompt: "<prompt text>"
     ```
     
+    IMPORTANT: For any parameters in double curly braces like {{parameter_name}}, create a script that 
+    accepts command line arguments. For example, if you see {{prefix}} in the prompt, the script should 
+    accept a command line parameter named "prefix".
+
+    Use argparse or click to properly parse command line arguments in a user-friendly way.
+    Always implement proper error handling for missing or incorrect arguments.
+    
     For each script, provide:
     1. The complete Python code with PEP 723 metadata
     2. A brief explanation of how the script works
@@ -101,17 +108,14 @@ def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> 
     
     Args:
         prompt: The prompt describing what the script should do
-        user_vars: Optional variables to replace in the prompt
+        user_vars: Optional variables to include in the script (not replacing in prompt)
         
     Returns:
         The generated Python script as a string
     """
     try:
-        # Replace variables in the prompt if provided
-        if user_vars:
-            for var, value in user_vars.items():
-                placeholder = f"{{{{{var}}}}}"
-                prompt = prompt.replace(placeholder, value)
+        # Note: We're no longer replacing variables in the prompt
+        # Parameters will be handled by the generated script
         
         # Run the agent to generate the script
         result = script_agent.run_sync(prompt)
