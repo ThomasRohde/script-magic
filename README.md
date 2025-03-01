@@ -12,6 +12,9 @@ Script Magic is a CLI tool for creating, managing, and running Python scripts wi
 - 🔄 **Simple Script Management**: Run, update, and manage your scripts with easy commands
 - 📦 **Automatic Dependency Management**: Script execution with `uv` handles dependencies automatically
 - 🚀 **Interactive Mode**: Refine generated scripts interactively before saving
+- 🔄 **Cross-Device Synchronization**: Automatically find and sync your script inventory across devices using GitHub Gists
+- 🔎 **Smart Gist Detection**: Automatically finds your existing script mappings on GitHub
+- 🌐 **Multi-Environment Support**: Works seamlessly across different machines with the same GitHub account
 
 ## Installation
 
@@ -88,10 +91,30 @@ Show detailed information about your scripts:
 sm list --verbose
 ```
 
-Filter scripts by tag:
+Pull the latest scripts from GitHub before listing:
 
 ```bash
-sm list --tag python --tag backup
+sm list --pull
+```
+
+Push your local script inventory to GitHub while listing:
+
+```bash
+sm list --push
+```
+
+### Syncing Scripts
+
+Sync your local inventory to GitHub:
+
+```bash
+sm sync
+```
+
+Pull the latest mapping from GitHub:
+
+```bash
+sm pull
 ```
 
 ### Deleting Scripts
@@ -108,13 +131,21 @@ Force deletion without confirmation:
 sm delete script-name --force
 ```
 
+## GitHub Integration
+
+Script Magic automatically handles GitHub synchronization:
+
+- First-time users: Script Magic creates a new private Gist to store your script inventory
+- Existing users: Script Magic finds your existing script inventory Gists automatically
+- Multiple devices: Script Magic detects existing mappings and asks which version to keep
+
 ## Configuration
 
 Script Magic stores configuration in the `~/.sm` directory:
 
-- `~/.sm/config.json`: Main configuration file
-- `~/.sm/logs/`: Log files for debugging
 - `~/.sm/mapping.json`: Maps script names to GitHub Gist IDs
+- `~/.sm/gist_id.txt`: Stores the ID of the GitHub Gist containing your mapping file
+- `~/.sm/logs/`: Log files for debugging
 
 ## Structure
 
@@ -122,23 +153,24 @@ Script Magic stores configuration in the `~/.sm` directory:
 script-magic/
 ├── src/
 │   └── script_magic/
-│       ├── __init__.py             # CLI entry point with command registration
-│       ├── create.py               # Script creation command
-│       ├── run.py                  # Script execution command
-│       ├── list.py                 # Script listing command
-│       ├── delete.py               # Script deletion command
-│       ├── github_integration.py   # GitHub Gist API integration
-│       ├── pydantic_ai_integration.py  # AI script generation
-│       ├── mapping_manager.py      # Script mapping management
-│       ├── logger.py               # Logging configuration
-│       └── rich_output.py          # Terminal output formatting
+│       ├── __init__.py                # CLI entry point with command registration
+│       ├── create.py                  # Script creation command
+│       ├── run.py                     # Script execution command
+│       ├── list.py                    # Script listing command
+│       ├── delete.py                  # Script deletion command
+│       ├── github_integration.py      # GitHub Gist API integration
+│       ├── github_gist_finder.py      # Finds existing mapping Gists
+│       ├── pydantic_ai_integration.py # AI script generation
+│       ├── mapping_manager.py         # Script mapping management
+│       ├── mapping_setup.py           # Initializes mapping with GitHub sync
+│       ├── logger.py                  # Logging configuration
+│       └── rich_output.py             # Terminal output formatting
 ```
 
 ## Environment Variables
 
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `GITHUB_PAT`: GitHub Personal Access Token with Gist permissions
-- `SM_CONFIG_DIR`: (Optional) Custom directory for Script Magic configuration
 
 ## Contributing
 
