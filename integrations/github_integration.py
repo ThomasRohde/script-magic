@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Optional, Tuple, Any
 from github import Github, GithubException
 from github.Gist import Gist
+from github.InputFileContent import InputFileContent
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -59,7 +60,8 @@ def upload_script_to_gist(script_name: str, script_content: str, description: st
         description = f"SM Tool script: {script_name}"
     
     filename = f"{script_name}.py"
-    files = {filename: {"content": script_content}}
+    # Create files dictionary with InputFileContent objects
+    files = {filename: InputFileContent(script_content)}
     
     try:
         client = get_github_client()
@@ -144,7 +146,7 @@ def sync_mapping_file(mapping_data: dict, mapping_gist_id: Optional[str] = None)
                 gist = client.get_gist(mapping_gist_id)
                 gist.edit(
                     description="SM Tool Script Mapping File",
-                    files={"mapping.json": {"content": mapping_content}}
+                    files={"mapping.json": InputFileContent(mapping_content)}
                 )
                 logger.info(f"Updated mapping file in Gist {mapping_gist_id}")
                 return mapping_gist_id
@@ -154,7 +156,7 @@ def sync_mapping_file(mapping_data: dict, mapping_gist_id: Optional[str] = None)
         else:
             # Create new Gist
             try:
-                files = {"mapping.json": {"content": mapping_content}}
+                files = {"mapping.json": InputFileContent(mapping_content)}
                 gist = client.get_user().create_gist(
                     True,  # public=False (i.e., private Gist)
                     files,
