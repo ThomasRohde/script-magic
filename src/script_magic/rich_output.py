@@ -51,7 +51,3 @@ def display_heading(text: str, style: str = "bold cyan") -> None:
         style: Rich style string for the heading
     """
     console.print(f"\n{text}", style=style)
-
-def create_init_file():
-    """Create an __init__.py file to make the utils directory a proper package."""
-    pass  # Implementation would create the __init__.py file if needed

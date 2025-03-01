@@ -198,13 +198,12 @@ class MappingManager:
             logger.info(f"Added/updated script '{script_name}' with Gist ID '{gist_id}'")
             
             # Automatically sync to GitHub if requested
-            if sync and self.gist_id:
+            if sync:
                 try:
-                    self._sync_to_github()
+                    self.sync_mapping()
                     logger.info(f"Automatically synced mapping to GitHub after adding script '{script_name}'")
                 except Exception as e:
                     logger.error(f"Failed to auto-sync mapping after adding script '{script_name}': {str(e)}")
-                    # Don't re-raise, as adding the script locally was successful
                     
         except Exception as e:
             logger.error(f"Failed to add script '{script_name}': {str(e)}")
@@ -360,15 +359,71 @@ class MappingManager:
         self._write_mapping(mapping)
         
         # Automatically sync to GitHub if requested
-        if sync and self.gist_id:
+        if sync:
             try:
-                self._sync_to_github()
+                self.sync_mapping()
                 logger.info(f"Automatically synced mapping to GitHub after removing script '{script_name}'")
             except Exception as e:
                 logger.error(f"Failed to auto-sync mapping after removing script '{script_name}': {str(e)}")
                 # We still return True as the local removal was successful
         
         return True
+
+    def sync_with_github(self) -> bool:
+        """
+        Synchronize local mapping with GitHub Gists.
+        
+        Returns:
+            bool: True if sync was successful, False otherwise
+        """
+        if not self.github_integration:
+            logger.error("GitHub integration not available for synchronization")
+            return False
+            
+        try:
+            logger.debug("Starting GitHub sync")
+            # Get all gists from GitHub
+            gists = self.github_integration.list_gists()
+            
+            if not gists:
+                logger.debug("No gists found on GitHub")
+                return True  # No gists to sync is not an error
+                
+            # Track changes for logging
+            added_scripts = []
+            updated_scripts = []
+            
+            # Update local mapping with GitHub data
+            for gist in gists:
+                # Look for our script identifier in the description
+                if "[script-magic]" in gist.description:
+                    script_name = gist.description.split("[script-magic] ")[1].strip()
+                    script_id = gist.id
+                    
+                    if script_name not in self.mapping:
+                        # New script found on GitHub
+                        self.mapping[script_name] = script_id
+                        added_scripts.append(script_name)
+                    elif self.mapping[script_name] != script_id:
+                        # Script exists but ID has changed
+                        self.mapping[script_name] = script_id
+                        updated_scripts.append(script_name)
+            
+            # Save updated mapping
+            self._save_mapping()
+            
+            # Log results
+            if added_scripts:
+                logger.info(f"Added {len(added_scripts)} scripts from GitHub: {', '.join(added_scripts)}")
+            if updated_scripts:
+                logger.info(f"Updated {len(updated_scripts)} scripts from GitHub: {', '.join(updated_scripts)}")
+                
+            logger.debug("GitHub sync completed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to sync with GitHub: {str(e)}")
+            return False
 
 # Helper functions for easier import/use
 _mapping_manager_instance = None

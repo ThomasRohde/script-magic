@@ -94,10 +94,3 @@ def set_console_log_level(level: int) -> None:
             break
     
     root_logger.debug(f"Console log level set to {logging.getLevelName(level)}")
-
-def create_init_file():
-    """Create an __init__.py file in the logs directory to make it a proper package."""
-    init_path = os.path.join(os.path.dirname(__file__), "__init__.py")
-    if not os.path.exists(init_path):
-        with open(init_path, 'w') as f:
-            f.write('"""Logger utilities for script-magic."""\n')
