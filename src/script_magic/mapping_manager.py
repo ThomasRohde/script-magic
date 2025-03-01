@@ -63,7 +63,7 @@ class MappingManager:
     def _ensure_mapping_file_exists(self) -> None:
         """
         Ensure that the mapping file and its directory exist.
-        If no local mapping file exists, try to download from GitHub if gist_id is available.
+        Create a new empty mapping file if none exists.
         """
         mapping_dir = os.path.dirname(self.mapping_file)
         
@@ -73,19 +73,9 @@ class MappingManager:
                 logger.info(f"Creating mapping directory: {mapping_dir}")
                 os.makedirs(mapping_dir)
             
-            # Try to load from GitHub first if we have a gist ID
-            if os.path.exists(GIST_ID_FILE) and not os.path.exists(self.mapping_file):
-                self._load_gist_id()
-                if self.gist_id:
-                    try:
-                        self._sync_from_github()
-                        return
-                    except Exception as e:
-                        logger.error(f"Failed to load mapping from GitHub: {str(e)}")
-            
             # Create the mapping file if it doesn't exist
             if not os.path.exists(self.mapping_file):
-                logger.info(f"Creating new mapping file: {self.mapping_file}")
+                logger.info(f"Creating new empty mapping file: {self.mapping_file}")
                 self._write_mapping({
                     "scripts": {},
                     "last_synced": None
@@ -177,7 +167,7 @@ class MappingManager:
             logger.error(f"Error syncing mapping from GitHub: {str(e)}")
             return False
     
-    def add_script(self, script_name: str, gist_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def add_script(self, script_name: str, gist_id: str, metadata: Optional[Dict[str, Any]] = None, sync: bool = True) -> None:
         """
         Add a new script entry to the mapping file.
         
@@ -185,6 +175,7 @@ class MappingManager:
             script_name: Name of the script
             gist_id: ID of the GitHub Gist
             metadata: Additional metadata for the script (optional)
+            sync: Whether to automatically sync to GitHub after adding (default: True)
         """
         if metadata is None:
             metadata = {}
@@ -205,6 +196,16 @@ class MappingManager:
             # Write the updated mapping back to file
             self._write_mapping(mapping_data)
             logger.info(f"Added/updated script '{script_name}' with Gist ID '{gist_id}'")
+            
+            # Automatically sync to GitHub if requested
+            if sync and self.gist_id:
+                try:
+                    self._sync_to_github()
+                    logger.info(f"Automatically synced mapping to GitHub after adding script '{script_name}'")
+                except Exception as e:
+                    logger.error(f"Failed to auto-sync mapping after adding script '{script_name}': {str(e)}")
+                    # Don't re-raise, as adding the script locally was successful
+                    
         except Exception as e:
             logger.error(f"Failed to add script '{script_name}': {str(e)}")
             raise
@@ -285,7 +286,8 @@ class MappingManager:
     def sync_mapping(self) -> bool:
         """
         Sync the mapping file with GitHub Gist.
-        If no gist_id is available, create a new gist.
+        - If no gist_id is available, create a new gist
+        - If gist_id exists, update the existing gist
         
         Returns:
             True if successful, False otherwise
@@ -333,12 +335,13 @@ class MappingManager:
                 return script
         return None
     
-    def remove_script(self, script_name: str) -> bool:
+    def remove_script(self, script_name: str, sync: bool = True) -> bool:
         """
         Remove a script from the local mapping.
         
         Args:
             script_name: Name of the script to remove
+            sync: Whether to automatically sync to GitHub after removal (default: True)
             
         Returns:
             bool: True if script was found and removed, False otherwise
@@ -355,9 +358,30 @@ class MappingManager:
         
         # Save updated mapping
         self._write_mapping(mapping)
+        
+        # Automatically sync to GitHub if requested
+        if sync and self.gist_id:
+            try:
+                self._sync_to_github()
+                logger.info(f"Automatically synced mapping to GitHub after removing script '{script_name}'")
+            except Exception as e:
+                logger.error(f"Failed to auto-sync mapping after removing script '{script_name}': {str(e)}")
+                # We still return True as the local removal was successful
+        
         return True
 
 # Helper functions for easier import/use
+_mapping_manager_instance = None
+
 def get_mapping_manager(mapping_file: str = DEFAULT_MAPPING_FILE) -> MappingManager:
     """Get a MappingManager instance with the given mapping file."""
-    return MappingManager(mapping_file)
+    global _mapping_manager_instance
+    if _mapping_manager_instance is None:
+        # Try to import here to avoid circular imports
+        try:
+            from script_magic.mapping_setup import setup_mapping
+            _mapping_manager_instance, _ = setup_mapping()
+        except ImportError:
+            # Fall back to direct instantiation if setup_mapping is not available
+            _mapping_manager_instance = MappingManager(mapping_file)
+    return _mapping_manager_instance

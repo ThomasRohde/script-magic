@@ -87,6 +87,14 @@ def delete_script(script_name: str, force: bool = False) -> bool:
         mapping_manager.remove_script(script_name)
         console.print("[green]✓ Removed from local inventory successfully[/green]")
         
+        # Sync the updated mapping with GitHub
+        console.print("[blue]Syncing mapping to GitHub...[/blue]")
+        if mapping_manager.sync_mapping():
+            console.print("[green]✓ Mapping synced to GitHub successfully[/green]")
+        else:
+            console.print("[yellow]Warning: Could not sync mapping to GitHub[/yellow]")
+            logger.warning("Failed to sync mapping to GitHub after removing script")
+        
         console.print(f"[bold green]Script '{script_name}' has been deleted.[/bold green]")
         return True
         

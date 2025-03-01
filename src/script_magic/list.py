@@ -1,131 +1,151 @@
 """
 Implementation of the 'list' command for Script Magic.
 
-This module handles listing all available scripts from the local mapping.
+This module handles listing all scripts in the inventory and can trigger mapping sync.
 """
 
 import click
 import sys
-from datetime import datetime
-from typing import List
+import datetime
+from typing import List, Dict, Any, Optional
+from tabulate import tabulate
 
 from script_magic.mapping_manager import get_mapping_manager
-from script_magic.rich_output import console
-from rich.table import Table
-from rich.panel import Panel
-from rich import box
+from script_magic.rich_output import console, display_heading
 from script_magic.logger import get_logger
+from script_magic.github_integration import GitHubIntegrationError
 
 # Set up logger
 logger = get_logger(__name__)
 
-def format_timestamp(timestamp_str: str) -> str:
-    """Format an ISO timestamp string to a more readable format."""
-    try:
-        if not timestamp_str:
-            return "N/A"
-        dt = datetime.fromisoformat(timestamp_str)
-        return dt.strftime("%Y-%m-%d %H:%M")
-    except Exception:
-        return timestamp_str
-
-def list_scripts(verbose: bool = False, tags: List[str] = None) -> bool:
+def format_scripts_table(scripts: List[Dict[str, Any]], verbose: bool = False) -> str:
     """
-    List all scripts in the local mapping.
+    Format scripts as a text table.
     
     Args:
-        verbose: Whether to display detailed script information
-        tags: Filter scripts by these tags (if provided)
+        scripts: List of script dictionaries
+        verbose: Whether to include detailed information
+        
+    Returns:
+        str: Formatted table
+    """
+    if not scripts:
+        return "No scripts found in inventory."
+    
+    # Determine what columns to show based on verbosity
+    if verbose:
+        headers = ["Name", "Description", "Gist ID", "Created"]
+        table_data = []
+        
+        for script in scripts:
+            # Parse ISO format date if available
+            created_at = script.get('created_at')
+            if created_at:
+                try:
+                    date_obj = datetime.datetime.fromisoformat(created_at)
+                    created_at = date_obj.strftime('%Y-%m-%d %H:%M')
+                except (ValueError, TypeError):
+                    pass  # Keep original string if parsing fails
+            
+            table_data.append([
+                script['name'],
+                script.get('description', 'No description')[:50] + ('...' if len(script.get('description', '')) > 50 else ''),
+                script.get('gist_id', 'Unknown'),
+                created_at or 'Unknown'
+            ])
+    else:
+        # Simple list with just name and short description
+        headers = ["Name", "Description"]
+        table_data = [
+            [
+                script['name'],
+                script.get('description', 'No description')[:70] + ('...' if len(script.get('description', '')) > 70 else '')
+            ]
+            for script in scripts
+        ]
+    
+    # Sort by name
+    table_data.sort(key=lambda x: x[0])
+    
+    # Return formatted table
+    return tabulate(table_data, headers=headers, tablefmt="grid")
+
+def list_scripts(verbose: bool = False, sync: bool = False) -> bool:
+    """
+    List all scripts in the inventory.
+    
+    Args:
+        verbose: Whether to show detailed information
+        sync: Whether to sync with GitHub before listing
         
     Returns:
         bool: True if successful, False otherwise
     """
     try:
         mapping_manager = get_mapping_manager()
+        
+        # Sync with GitHub first if requested
+        if sync:
+            console.print("[bold blue]Syncing mapping with GitHub...[/bold blue]")
+            if mapping_manager.sync_mapping():
+                console.print("[green]✓ Mapping synced successfully[/green]\n")
+            else:
+                console.print("[yellow]Warning: Could not sync mapping with GitHub[/yellow]\n")
+        
+        # Get all scripts
         scripts = mapping_manager.list_scripts()
         
+        # Display the scripts
+        display_heading("Script Inventory", style="bold blue")
+        
         if not scripts:
-            console.print(Panel("[italic]No scripts found in your inventory.[/italic]", 
-                               title="Script Magic", 
-                               border_style="blue"))
+            console.print("[yellow]No scripts found in your inventory.[/yellow]")
+            console.print("\nUse 'sm create <script_name> <prompt>' to create a new script.")
             return True
             
-        # Filter by tags if specified
-        if tags:
-            filtered_scripts = []
-            for script in scripts:
-                script_tags = script.get("tags", [])
-                if any(tag in script_tags for tag in tags):
-                    filtered_scripts.append(script)
-            scripts = filtered_scripts
-            
-            if not scripts:
-                console.print(Panel(f"[italic]No scripts found with tags: {', '.join(tags)}[/italic]", 
-                                   title="Script Magic", 
-                                   border_style="yellow"))
-                return True
+        console.print(format_scripts_table(scripts, verbose))
         
-        # Create and populate the table
-        table = Table(box=box.ROUNDED, border_style="blue", title="Available Scripts")
+        # Show count and hint
+        console.print(f"\nFound {len(scripts)} script(s) in inventory.")
+        console.print("[dim]Run with --verbose for more details[/dim]")
         
-        # Define columns based on verbosity
-        table.add_column("Name", style="cyan bold")
-        table.add_column("Description", style="green")
-        
-        if verbose:
-            table.add_column("Gist ID", style="dim")
-            table.add_column("Created At", style="yellow")
-            table.add_column("Tags", style="magenta")
-        
-        # Add rows to the table
-        for script in sorted(scripts, key=lambda s: s["name"]):
-            row = [
-                script["name"],
-                script.get("description", "No description available")
-            ]
-            
-            if verbose:
-                row.extend([
-                    script.get("gist_id", "Unknown"),
-                    format_timestamp(script.get("created_at")),
-                    ", ".join(script.get("tags", [])) or "No tags"
-                ])
-                
-            table.add_row(*row)
-        
-        # Display the table
-        console.print("\n")
-        console.print(table)
-        console.print("\n")
-        
-        # Display summary
-        tags_summary = {}
-        for script in scripts:
-            for tag in script.get("tags", []):
-                tags_summary[tag] = tags_summary.get(tag, 0) + 1
-        
-        if tags_summary and verbose:
-            tags_text = " ".join([f"[{color}]{tag}[/{color}] ({count})"
-                                for color, (tag, count) in 
-                                zip(["blue", "green", "yellow", "magenta", "cyan"] * 10, 
-                                    sorted(tags_summary.items()))])
-            
-            console.print(Panel(tags_text, title="Tags Summary", border_style="dim"))
-        
-        console.print(f"[bold blue]{len(scripts)} scripts[/bold blue] in your inventory\n")
         return True
         
+    except GitHubIntegrationError as e:
+        console.print(f"[bold yellow]GitHub integration error:[/bold yellow] {str(e)}")
+        logger.warning(f"GitHub integration error during list: {str(e)}")
+        
+        try:
+            # Try to list scripts from local mapping only
+            mapping_manager = get_mapping_manager()
+            scripts = mapping_manager.list_scripts()
+            
+            display_heading("Script Inventory (Local Only)", style="yellow")
+            console.print(format_scripts_table(scripts, verbose))
+            console.print(f"\nFound {len(scripts)} script(s) in local inventory.")
+            console.print("[dim]Note: Using local data only due to GitHub integration error[/dim]")
+            return True
+        except Exception as inner_e:
+            console.print(f"[bold red]Error:[/bold red] {str(inner_e)}")
+            logger.error(f"Error listing scripts: {str(inner_e)}")
+            return False
+            
     except Exception as e:
         console.print(f"[bold red]Error listing scripts:[/bold red] {str(e)}")
-        logger.error(f"Script listing error: {str(e)}", exc_info=True)
+        logger.error(f"Error listing scripts: {str(e)}", exc_info=True)
         return False
 
 @click.command()
-@click.option('--verbose', '-v', is_flag=True, help='Show detailed information')
-@click.option('--tag', '-t', multiple=True, help='Filter scripts by tag')
-def cli(verbose: bool, tag: tuple) -> None:
-    """List all available scripts in your inventory."""
-    success = list_scripts(verbose=verbose, tags=list(tag) if tag else None)
+@click.option('--verbose', '-v', is_flag=True, help='Show detailed information about scripts')
+@click.option('--sync', '-s', is_flag=True, help='Sync with GitHub before listing scripts')
+def cli(verbose: bool, sync: bool) -> None:
+    """
+    List all scripts in your inventory.
+    
+    Shows a table of all available scripts with their descriptions.
+    Use --verbose to see more details like Gist IDs and creation dates.
+    """
+    success = list_scripts(verbose, sync)
     if not success:
         sys.exit(1)
 

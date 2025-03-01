@@ -75,6 +75,14 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
             }
         )
         
+        # Sync the mapping file to GitHub
+        console.print("[bold blue]Syncing mapping to GitHub...[/bold blue]")
+        if mapping_manager.sync_mapping():
+            console.print("[green]✓ Mapping synced to GitHub successfully[/green]")
+        else:
+            console.print("[yellow]Warning: Could not sync mapping to GitHub[/yellow]")
+            logger.warning("Failed to sync mapping to GitHub after adding script")
+        
         console.print(f"[bold green]✓ Script '{script_name}' created successfully![/bold green]")
         console.print(f"[dim]Gist ID: {gist_id}[/dim]")
         return True
