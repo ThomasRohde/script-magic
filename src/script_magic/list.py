@@ -41,6 +41,7 @@ def format_scripts_table(scripts: List[Dict[str, Any]], verbose: bool = False) -
     if verbose:
         table.add_column("Name", style="cyan bold", no_wrap=True)
         table.add_column("Description", style="green")
+        table.add_column("Tags", style="yellow")
         table.add_column("Gist ID", style="blue dim")
         table.add_column("Created", style="magenta")
         
@@ -58,9 +59,14 @@ def format_scripts_table(scripts: List[Dict[str, Any]], verbose: bool = False) -
             if len(description) > 50:
                 description = description[:50] + "..."
                 
+            # Format tags
+            tags = script.get('tags', [])
+            tag_text = ", ".join(tags) if tags else "No tags"
+                
             table.add_row(
                 script['name'],
                 description,
+                tag_text,
                 script.get('gist_id', 'Unknown'),
                 created_at or 'Unknown'
             )

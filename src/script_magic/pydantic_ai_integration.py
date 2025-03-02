@@ -72,6 +72,7 @@ script_agent = Agent(
     1. The complete Python code with PEP 723 metadata
     2. A brief explanation of how the script works
     3. Any additional notes or caveats the user should be aware of
+    4. Create tags for the script that are relevant to the script's functionality
     """
 )
 
@@ -101,6 +102,44 @@ def add_metadata_if_missing(code: str, prompt: str) -> str:
 """
     # Add metadata to the top of the script
     return metadata + code
+
+def extract_metadata_tags(script: str) -> list:
+    """
+    Extract tags from the PEP 723 metadata in the script.
+    
+    Args:
+        script: The script text containing PEP 723 metadata
+        
+    Returns:
+        A list of tags extracted from the metadata
+    """
+    # Default tags if none are found
+    default_tags = ["generated", "script-magic"]
+    
+    # Look for tags in the PEP 723 metadata - more permissive pattern
+    tags_pattern = r'#\s*tags\s*=\s*\[(.*?)\]'
+    match = re.search(tags_pattern, script, re.DOTALL)
+    
+    if not match:
+        return default_tags
+    
+    # Extract and clean up the tags
+    tags_str = match.group(1).strip()
+    tags = []
+    
+    # Parse the tags from the list format - handle different quote styles
+    for tag in re.findall(r'["\']([^"\']+)["\']', tags_str):
+        tags.append(tag)
+    
+    # Also catch tags without quotes but separated by commas
+    if not tags:
+        for tag in tags_str.split(','):
+            clean_tag = tag.strip()
+            if clean_tag and not clean_tag.startswith('#'):  # Skip comments
+                tags.append(clean_tag)
+    
+    # If no tags were extracted, use defaults
+    return tags if tags else default_tags
 
 def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> str:
     """

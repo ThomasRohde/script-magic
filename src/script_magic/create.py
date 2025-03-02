@@ -11,7 +11,7 @@ import click
 
 # Import integration modules
 from script_magic.pydantic_ai_integration import (
-    process_prompt, display_script, interactive_refinement
+    process_prompt, display_script, interactive_refinement, extract_metadata_tags
 )
 from script_magic.github_integration import upload_script_to_gist, GitHubIntegrationError
 from script_magic.mapping_manager import get_mapping_manager
@@ -54,6 +54,10 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
             # Non-interactive mode
             script_content = process_prompt(prompt, interactive=False)
         
+        # Extract tags from the generated script
+        tags = extract_metadata_tags(script_content)
+        logger.debug(f"Extracted tags from script: {tags}")
+        
         # Upload to GitHub Gist
         console.print("\n[bold blue]Uploading to GitHub Gist...[/bold blue]")
         gist_id = upload_script_to_gist(
@@ -71,7 +75,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
             metadata={
                 "prompt": prompt,
                 "description": prompt[:100] + ("..." if len(prompt) > 100 else ""),
-                "tags": ["generated"]
+                "tags": tags
             }
         )
         
