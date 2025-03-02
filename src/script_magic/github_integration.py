@@ -22,13 +22,13 @@ def get_github_client() -> Github:
         Github: Authenticated GitHub client
         
     Raises:
-        GitHubIntegrationError: If GITHUB_PAT is not set or authentication fails
+        GitHubIntegrationError: If MY_GITHUB_PAT is not set or authentication fails
     """
-    github_token = os.environ.get("GITHUB_PAT")
+    github_token = os.environ.get("MY_GITHUB_PAT")
     
     if not github_token:
-        logger.error("GITHUB_PAT environment variable not set")
-        raise GitHubIntegrationError("GitHub Personal Access Token not found. Please set the GITHUB_PAT environment variable.")
+        logger.error("MY_GITHUB_PAT environment variable not set")
+        raise GitHubIntegrationError("GitHub Personal Access Token not found. Please set the MY_GITHUB_PAT environment variable.")
     
     try:
         client = Github(github_token)

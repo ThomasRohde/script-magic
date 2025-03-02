@@ -113,8 +113,8 @@ def cli(script_name: str, prompt: str, preview: bool) -> None:
         console.print("[bold red]Error:[/bold red] OPENAI_API_KEY environment variable is not set")
         sys.exit(1)
     
-    if not os.getenv("GITHUB_PAT"):
-        console.print("[bold red]Error:[/bold red] GITHUB_PAT environment variable is not set")
+    if not os.getenv("MY_GITHUB_PAT"):
+        console.print("[bold red]Error:[/bold red] MY_GITHUB_PAT environment variable is not set")
         sys.exit(1)
     
     # Run the create command

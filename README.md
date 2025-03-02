@@ -38,7 +38,7 @@ uv pip install -e .
 
 # Set up your environment variables
 export OPENAI_API_KEY="your-openai-api-key"
-export GITHUB_PAT="your-github-personal-access-token"
+export MY_GITHUB_PAT="your-github-personal-access-token"
 ```
 
 ## Usage
@@ -170,7 +170,7 @@ script-magic/
 ## Environment Variables
 
 - `OPENAI_API_KEY`: Your OpenAI API key
-- `GITHUB_PAT`: GitHub Personal Access Token with Gist permissions
+- `MY_GITHUB_PAT`: GitHub Personal Access Token with Gist permissions
 
 ## Contributing
 
