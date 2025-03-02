@@ -29,6 +29,8 @@ if not os.getenv("OPENAI_API_KEY"):
 class ScriptResult(BaseModel):
     """Model for script generation results."""
     code: str
+    description: str
+    tags: list[str] = ["generated", "script-magic"]
     explanation: str
     additional_notes: Optional[str] = None
 
@@ -76,25 +78,41 @@ script_agent = Agent(
     """
 )
 
-def add_metadata_if_missing(code: str, prompt: str) -> str:
+def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags: list[str] = None) -> str:
     """
     Ensures the script has PEP 723 compliant metadata.
     If metadata is missing, adds it to the top of the script.
+    
+    Args:
+        code: The script code
+        prompt: The original prompt
+        description: Description from the AI result
+        tags: Tags from the AI result
     """
     # Check if PEP 723 metadata already exists
     if re.search(r"^# /// script[\s\S]*?# ///", code, re.MULTILINE):
         return code
-        
+    
+    # Use provided description or fallback to prompt
+    if not description:
+        description = prompt.strip().split('.')[0] if '.' in prompt else prompt.strip()
+    
+    # Use provided tags or defaults
+    if not tags:
+        tags = ["generated", "script-magic"]
+    
+    # Format tags as a string list
+    tags_str = ", ".join([f'"{tag}"' for tag in tags])
+    
     # Create metadata block
     today = datetime.now().strftime("%Y-%m-%d")
-    description = prompt.strip().split('.')[0] if '.' in prompt else prompt.strip()
     metadata = f"""# /// script
 # description = "{description}"
 # authors = ["Script-Magic AI Generator"]
 # date = "{today}"
 # requires-python = ">=3.9"
 # dependencies = []
-# tags = ["generated", "script-magic"]
+# tags = [{tags_str}]
 # ///
 
 # Generated from the prompt: "{prompt.strip()}"
@@ -141,7 +159,7 @@ def extract_metadata_tags(script: str) -> list:
     # If no tags were extracted, use defaults
     return tags if tags else default_tags
 
-def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> str:
+def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> tuple[str, str, list[str]]:
     """
     Generate a Python script based on the provided prompt.
     
@@ -150,23 +168,24 @@ def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> 
         user_vars: Optional variables to include in the script (not replacing in prompt)
         
     Returns:
-        The generated Python script as a string
+        A tuple containing (code, description, tags)
     """
     try:
-        # Note: We're no longer replacing variables in the prompt
-        # Parameters will be handled by the generated script
-        
         # Run the agent to generate the script
         result = script_agent.run_sync(prompt)
         
         # Extract the generated code and ensure metadata is included
         code = result.data.code
-        code = add_metadata_if_missing(code, prompt)
+        description = result.data.description
+        tags = result.data.tags
         
-        return code
+        # Ensure code has metadata
+        code = add_metadata_if_missing(code, prompt, description, tags)
+        
+        return code, description, tags
     
     except Exception as e:
-        return f"""# /// script
+        error_code = f"""# /// script
 # description = "Error generating script"
 # authors = ["Script-Magic AI Generator"]
 # date = "{datetime.now().strftime("%Y-%m-%d")}"
@@ -179,8 +198,9 @@ def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> 
 # Error occurred during script generation
 print("Error: Failed to generate script")
 """
+        return error_code, "Error generating script", ["generated", "error"]
 
-def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> str:
+def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> tuple[str, str, list[str]]:
     """
     Generate a script with interactive refinement.
     
@@ -189,9 +209,9 @@ def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = No
         user_vars: Optional variables to replace in the prompt
         
     Returns:
-        The final, accepted script as a string
+        A tuple containing (code, description, tags)
     """
-    current_script = generate_script(prompt, user_vars)
+    current_script, description, tags = generate_script(prompt, user_vars)
     
     while True:
         display_heading("Generated Script", style="bold green")
@@ -200,13 +220,13 @@ def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = No
         user_input = input("\nDo you want to refine the script? (y/n): ").strip().lower()
         
         if user_input != 'y':
-            return current_script
+            return current_script, description, tags
         
         refinement = input("\nPlease describe what changes you want: ")
         full_prompt = f"{prompt}\n\nRevision request: {refinement}"
-        current_script = generate_script(full_prompt, user_vars)
+        current_script, description, tags = generate_script(full_prompt, user_vars)
 
-def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, interactive: bool = False) -> str:
+def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, interactive: bool = False) -> tuple[str, str, list[str]]:
     """
     Process a prompt to generate a Python script.
     
@@ -216,7 +236,7 @@ def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, inte
         interactive: Whether to enable interactive refinement
         
     Returns:
-        The generated Python script as a string
+        A tuple containing (code, description, tags)
     """
     if interactive:
         return interactive_refinement(prompt, user_vars)
@@ -236,6 +256,6 @@ def display_script(script: str, title: Optional[str] = "Generated Script"):
 if __name__ == "__main__":
     # Example usage
     test_prompt = "Create a script to list files in the current directory sorted by size."
-    script = process_prompt(test_prompt, interactive=True)
+    script, description, tags = process_prompt(test_prompt, interactive=True)
     display_heading("Final Script", style="bold blue")
     display_code(script, language="python", line_numbers=True)

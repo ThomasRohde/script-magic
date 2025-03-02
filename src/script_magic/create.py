@@ -42,7 +42,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
             console.print(f"[italic]Using prompt:[/italic] {prompt}\n")
             
             # Interactive mode with preview
-            script_content = interactive_refinement(prompt)
+            script_content, description, tags = interactive_refinement(prompt)
             display_heading("Final Script", style="bold green")
             display_script(script_content, title=script_name)
             
@@ -52,18 +52,14 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
                 return False
         else:
             # Non-interactive mode
-            script_content = process_prompt(prompt, interactive=False)
-        
-        # Extract tags from the generated script
-        tags = extract_metadata_tags(script_content)
-        logger.debug(f"Extracted tags from script: {tags}")
+            script_content, description, tags = process_prompt(prompt, interactive=False)
         
         # Upload to GitHub Gist
         console.print("\n[bold blue]Uploading to GitHub Gist...[/bold blue]")
         gist_id = upload_script_to_gist(
             script_name=script_name,
             script_content=script_content,
-            description=f"Script Magic: {prompt[:50]}..."
+            description=description[:50] + ("..." if len(description) > 50 else "")
         )
         
         # Update local mapping
@@ -74,7 +70,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
             gist_id=gist_id,
             metadata={
                 "prompt": prompt,
-                "description": prompt[:100] + ("..." if len(prompt) > 100 else ""),
+                "description": description[:100] + ("..." if len(description) > 100 else ""),
                 "tags": tags
             }
         )
