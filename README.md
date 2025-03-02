@@ -77,6 +77,15 @@ Force refresh from GitHub before running:
 sm run hello-world --refresh
 ```
 
+Run a script in a new terminal window:
+
+```bash
+sm run visualize-data --in-terminal
+```
+
+The `--in-terminal` (`-t`) option will run the script in a new terminal window that remains open until closed by the user.
+This is particularly useful for scripts with interactive elements or those that produce visual output.
+
 ### Listing Scripts
 
 View all scripts in your inventory:

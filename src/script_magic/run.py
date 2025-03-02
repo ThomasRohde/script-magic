@@ -5,6 +5,7 @@ import os
 import sys
 import click
 import subprocess
+import tempfile
 from typing import List, Tuple
 
 from script_magic.mapping_manager import get_mapping_manager
@@ -20,7 +21,8 @@ logger = get_logger(__name__)
 @click.option('--refresh', '-r', is_flag=True, help='Force refresh the script from GitHub')
 @click.option('--dry-run', is_flag=True, help='Download the script but don\'t execute it')
 @click.option('--verbose', '-v', is_flag=True, help='Display more detailed output')
-def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbose: bool):
+@click.option('--in-terminal', '-t', is_flag=True, help='Run script in a new terminal window')
+def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbose: bool, in_terminal: bool):
     """
     Run a Python script stored in a GitHub Gist.
     
@@ -48,7 +50,10 @@ def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbo
             return
             
         # Step 2: Execute the script with uv
-        execute_script_with_uv(script_path, params)
+        if in_terminal:
+            execute_script_in_terminal(script_path, params)
+        else:
+            execute_script_with_uv(script_path, params)
         
     except GitHubIntegrationError as e:
         logger.error(f"GitHub integration error: {str(e)}")
@@ -126,7 +131,7 @@ def execute_script_with_uv(script_path: str, params: List[str]) -> None:
     Raises:
         Exception: If the script execution fails
     """
-    # Build the command to execute the script with uv run
+    # Build the command to execute the script with uv
     cmd = ["uv", "run", script_path]
     
     # Add any parameters
@@ -163,3 +168,88 @@ def execute_script_with_uv(script_path: str, params: List[str]) -> None:
     except subprocess.SubprocessError as e:
         logger.error(f"Error executing script: {str(e)}")
         raise click.ClickException(f"Error executing script: {str(e)}")
+
+def execute_script_in_terminal(script_path: str, params: List[str]) -> None:
+    """
+    Execute a Python script in a new terminal window that stays open until closed by the user.
+    
+    Args:
+        script_path: Path to the script file
+        params: List of parameters to pass to the script
+        
+    Raises:
+        Exception: If the script execution fails
+    """
+    # Create a wrapper script that will run our script and wait for user input before closing
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        wrapper_path = f.name
+        f.write(f'''
+import subprocess
+import sys
+import os
+
+def main():
+    print("Running script: {os.path.basename(script_path)}")
+    cmd = ["uv", "run", r"{script_path}"]
+    cmd.extend({repr(list(params))})
+    
+    try:
+        result = subprocess.run(cmd, text=True)
+        if result.returncode != 0:
+            print(f"\\nScript exited with status code: {{result.returncode}}")
+    except Exception as e:
+        print(f"\\nError running script: {{e}}")
+
+    print("\\nPress Enter to close this terminal...")
+    input()
+
+if __name__ == "__main__":
+    main()
+''')
+    
+    try:
+        logger.info(f"Executing script in new terminal window: {script_path}")
+        
+        if sys.platform == 'win32':
+            # Windows: Use cmd.exe to start a new terminal window
+            subprocess.Popen(
+                ['start', 'cmd', '/k', 'uv', 'run', wrapper_path], 
+                shell=True
+            )
+        elif sys.platform == 'darwin':
+            # macOS: Use Terminal.app
+            apple_script = f'''
+            tell application "Terminal"
+                do script "uv run '{wrapper_path}'"
+            end tell
+            '''
+            subprocess.Popen(['osascript', '-e', apple_script])
+        else:
+            # Linux and other Unix-based systems: Try common terminal emulators
+            terminal_found = False
+            for terminal in ['gnome-terminal', 'xterm', 'konsole', 'xfce4-terminal']:
+                try:
+                    if terminal == 'gnome-terminal':
+                        subprocess.Popen([terminal, '--', 'uv', 'run', wrapper_path])
+                    else:
+                        subprocess.Popen([terminal, '-e', f'uv run {wrapper_path}'])
+                    terminal_found = True
+                    break
+                except FileNotFoundError:
+                    continue
+            
+            if not terminal_found:
+                raise click.ClickException(
+                    "No suitable terminal emulator found. Please install gnome-terminal, xterm, konsole, or xfce4-terminal."
+                )
+        
+        logger.info(f"Script '{os.path.basename(script_path)}' launched in new terminal window")
+        
+    except Exception as e:
+        # Clean up the wrapper script in case of error
+        try:
+            os.unlink(wrapper_path)
+        except:
+            pass
+        logger.error(f"Failed to execute script in terminal: {str(e)}")
+        raise click.ClickException(f"Failed to execute script in terminal: {str(e)}")
