@@ -7,11 +7,10 @@ This module allows users to edit scripts using a Textual TUI.
 import os
 import sys
 import click
-# autopep8 import removed
 from typing import Dict, Any
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, TextArea, Static, Input, LoadingIndicator
+from textual.widgets import Header, Footer, TextArea, Static, Input
 from textual.containers import Container
 from textual import events
 from textual.binding import Binding
@@ -123,16 +122,6 @@ class ScriptEditor(App):
         color: white;
         padding: 0 1;
     }
-    
-    LoadingIndicator {
-        width: 100%;
-        height: 1;
-        background: #121212;
-    }
-    
-    .hidden {
-        display: none;
-    }
     """
     
     BINDINGS = [
@@ -162,8 +151,6 @@ class ScriptEditor(App):
         self.updated_tags = []
         # Store AI processing results
         self.ai_results = None
-        # Track AI processing status
-        self.ai_processing = False
     
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -171,7 +158,6 @@ class ScriptEditor(App):
         # Use TextArea.code_editor directly which already has line numbers enabled
         yield TextArea.code_editor(self.script_content, language="python", id="editor")
         yield Static(f"File: {self.script_name} | Python Editor", classes="status-bar", id="status-bar")
-        yield LoadingIndicator(id="loading", classes="hidden")
         yield Footer()
     
     def on_mount(self) -> None:
@@ -179,11 +165,6 @@ class ScriptEditor(App):
         try:
             editor = self.query_one("#editor", TextArea)
             editor.focus()
-            
-            # Make sure loading indicator is hidden on startup
-            loading = self.query_one("#loading", LoadingIndicator)
-            loading.add_class("hidden")
-            loading.display = False
             
             # Mark the app as fully initialized
             self._initialized = True
@@ -261,7 +242,7 @@ class ScriptEditor(App):
         self._allow_quit = False
             
     def action_reload(self) -> None:
-        """Reload the script content from local storage if available."""
+        """Reload the script content from local storage if available.""" 
         try:
             # First try to load from local storage
             local_content = self.mapping_manager.load_script_locally(self.script_name)
@@ -285,12 +266,12 @@ class ScriptEditor(App):
             self.notify(f"Error reloading script: {str(e)}", timeout=3, severity="error")
     
     def action_prompt(self) -> None:
-        """Show a prompt dialog to get user input."""
+        """Show a prompt dialog to get user input.""" 
         # Start the worker that will show the prompt modal
         self.run_worker(self._show_prompt_modal())
     
     async def _show_prompt_modal(self) -> None:
-        """Worker that shows the prompt modal and processes the result."""
+        """Worker that shows the prompt modal and processes the result.""" 
         prompt_modal = PromptModal()
         result = await self.push_screen(prompt_modal, wait_for_dismiss=True)
         if result and prompt_modal.result:
@@ -303,16 +284,13 @@ class ScriptEditor(App):
     async def process_prompt(self, prompt: str) -> None:
         """Process the user's prompt using AI to edit the script."""
         try:
-            # Update status and show loading indicator
-            self.ai_processing = True
-            self.query_one("#status-bar").update(f"Processing prompt with AI: {prompt[:30]}{'...' if len(prompt) > 30 else ''}")
-            loading = self.query_one("#loading", LoadingIndicator)
-            loading.remove_class("hidden")
-            loading.display = True
-            
             # Get current content from the editor
             editor = self.query_one("#editor", TextArea)
             current_script = editor.text
+            
+            # Update status bar with processing message
+            status_bar = self.query_one("#status-bar", Static)
+            status_bar.update(f"AI processing... | {self.script_name}")
             
             # Create a worker to process the AI edit
             def ai_worker():
@@ -339,10 +317,9 @@ class ScriptEditor(App):
             self.notify("AI is thinking about your prompt... This may take a moment.", timeout=5)
             
         except Exception as e:
-            # Hide loading indicator on error
-            self.query_one("#loading").display = False
-            self.ai_processing = False
-            self.query_one("#status-bar").update(f"File: {self.script_name} | Python Editor")
+            # Reset status bar on error
+            status_bar = self.query_one("#status-bar", Static)
+            status_bar.update(f"File: {self.script_name} | Python Editor")
             
             logger.error(f"Failed to process prompt with AI: {str(e)}", exc_info=True)
             self.notify(f"Error processing with AI: {str(e)}", timeout=5, severity="error")
@@ -353,16 +330,12 @@ class ScriptEditor(App):
         
         if worker.state == WorkerState.RUNNING:
             # Update status to show worker is running
-            if self.ai_processing:
-                self.notify("AI is generating code based on your prompt...", timeout=3)
+            self.notify("AI is generating code based on your prompt...", timeout=3)
         
         elif worker.state == WorkerState.SUCCESS:
-            # Hide loading indicator when complete
-            if self.ai_processing:
-                loading = self.query_one("#loading", LoadingIndicator)
-                loading.display = False
-                self.ai_processing = False
-                self.query_one("#status-bar").update(f"File: {self.script_name} | Python Editor")
+            # Update status bar back to normal
+            status_bar = self.query_one("#status-bar", Static)
+            status_bar.update(f"File: {self.script_name} | Python Editor")
             
             # Worker completed successfully
             result = worker.result
@@ -386,12 +359,9 @@ class ScriptEditor(App):
                     self.notify("AI did not suggest any changes to your script", timeout=3)
                 
         elif worker.state == WorkerState.ERROR:
-            # Hide loading indicator on error
-            if self.ai_processing:
-                loading = self.query_one("#loading", LoadingIndicator)
-                loading.display = False
-                self.ai_processing = False
-                self.query_one("#status-bar").update(f"File: {self.script_name} | Python Editor")
+            # Update status bar back to normal
+            status_bar = self.query_one("#status-bar", Static)
+            status_bar.update(f"File: {self.script_name} | Python Editor")
             
             # Worker encountered an error
             error = worker.error
@@ -399,12 +369,9 @@ class ScriptEditor(App):
             self.notify(f"Error in AI processing: {str(error)}", timeout=5, severity="error")
             
         elif worker.state == WorkerState.CANCELLED:
-            # Hide loading indicator when cancelled
-            if self.ai_processing:
-                loading = self.query_one("#loading", LoadingIndicator)
-                loading.display = False
-                self.ai_processing = False
-                self.query_one("#status-bar").update(f"File: {self.script_name} | Python Editor")
+            # Update status bar back to normal
+            status_bar = self.query_one("#status-bar", Static)
+            status_bar.update(f"File: {self.script_name} | Python Editor")
             
             # Worker was cancelled
             self.notify("AI processing was cancelled", timeout=2)
