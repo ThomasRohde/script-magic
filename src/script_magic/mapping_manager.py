@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 DEFAULT_MAPPING_DIR = os.path.expanduser("~/.sm")
 DEFAULT_MAPPING_FILE = os.path.join(DEFAULT_MAPPING_DIR, "mapping.json")
 GIST_ID_FILE = os.path.join(DEFAULT_MAPPING_DIR, "gist_id.txt")
-LOCAL_SCRIPTS_DIR = os.path.expanduser("~/.script_magic/scripts")
+LOCAL_SCRIPTS_DIR = os.path.expanduser("~/.sm/scripts")
 
 class MappingManager:
     def __init__(self, mapping_file: str = DEFAULT_MAPPING_FILE):
