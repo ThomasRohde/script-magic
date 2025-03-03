@@ -151,6 +151,8 @@ class ScriptEditor(App):
         self.updated_tags = []
         # Store AI processing results
         self.ai_results = None
+        # Track worker IDs that have shown notifications
+        self._notified_workers = set()
     
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -314,7 +316,7 @@ class ScriptEditor(App):
             
             # Create and run the worker (use thread=True since AI processing is CPU-intensive)
             worker = self.run_worker(ai_worker, thread=True)
-            self.notify("AI is thinking about your prompt... This may take a moment.", timeout=5)
+            self.notify("Preparing to process your prompt...", timeout=3)
             
         except Exception as e:
             # Reset status bar on error
@@ -327,10 +329,13 @@ class ScriptEditor(App):
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         """Handle worker state changes."""
         worker = event.worker
+        worker_id = id(worker)
         
         if worker.state == WorkerState.RUNNING:
-            # Update status to show worker is running
-            self.notify("AI is generating code based on your prompt...", timeout=3)
+            # Only show notification if we haven't already notified for this worker
+            if worker_id not in self._notified_workers:
+                self.notify("AI is generating code based on your prompt...", timeout=3)
+                self._notified_workers.add(worker_id)
         
         elif worker.state == WorkerState.SUCCESS:
             # Update status bar back to normal
@@ -358,23 +363,27 @@ class ScriptEditor(App):
                 else:
                     self.notify("AI did not suggest any changes to your script", timeout=3)
                 
-        elif worker.state == WorkerState.ERROR:
+            # Clean up the worker tracking
+            if worker_id in self._notified_workers:
+                self._notified_workers.remove(worker_id)
+                
+        elif worker.state in (WorkerState.ERROR, WorkerState.CANCELLED):
             # Update status bar back to normal
             status_bar = self.query_one("#status-bar", Static)
             status_bar.update(f"File: {self.script_name} | Python Editor")
             
-            # Worker encountered an error
-            error = worker.error
-            logger.error(f"Worker error: {error}", exc_info=True)
-            self.notify(f"Error in AI processing: {str(error)}", timeout=5, severity="error")
-            
-        elif worker.state == WorkerState.CANCELLED:
-            # Update status bar back to normal
-            status_bar = self.query_one("#status-bar", Static)
-            status_bar.update(f"File: {self.script_name} | Python Editor")
-            
-            # Worker was cancelled
-            self.notify("AI processing was cancelled", timeout=2)
+            if worker.state == WorkerState.ERROR:
+                # Worker encountered an error
+                error = worker.error
+                logger.error(f"Worker error: {error}", exc_info=True)
+                self.notify(f"Error in AI processing: {str(error)}", timeout=5, severity="error")
+            else:
+                # Worker was cancelled
+                self.notify("AI processing was cancelled", timeout=2)
+                
+            # Clean up the worker tracking
+            if worker_id in self._notified_workers:
+                self._notified_workers.remove(worker_id)
 
 def edit_script(script_name: str) -> bool:
     """
