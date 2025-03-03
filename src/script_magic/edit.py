@@ -31,6 +31,8 @@ logger = get_logger(__name__)
 class ScriptEditor(App):
     """A Textual app for editing Python scripts."""
     
+    ENABLE_COMMAND_PALETTE = False
+
     CSS = """
     Screen {
         background: #121212;
@@ -65,7 +67,6 @@ class ScriptEditor(App):
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+r", "reload", "Reload"),
-        Binding("f1", "help", "Help")
     ]
     
     def __init__(self, script_name: str, script_content: str, gist_id: str, 
@@ -175,14 +176,6 @@ class ScriptEditor(App):
         except Exception as e:
             logger.error(f"Failed to reload script: {str(e)}", exc_info=True)
             self.notify(f"Error reloading script: {str(e)}", timeout=3, severity="error")
-    
-    def action_help(self) -> None:
-        """Show help information."""
-        self.notify(
-            "Python Editor Shortcuts: Ctrl+S: save, Ctrl+Q: quit, "
-            "Ctrl+R: reload, Tab: indent, F1: help",
-            timeout=5
-        )
 
 def edit_script(script_name: str) -> bool:
     """
