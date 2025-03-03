@@ -8,7 +8,7 @@ import os
 import re
 from typing import Optional, Dict
 from datetime import datetime
-
+from script_magic.pep723 import update_script_with_corrected_metadata
 from pydantic_ai import Agent
 from pydantic import BaseModel
 
@@ -112,6 +112,7 @@ def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags:
         tags: Tags from the AI result
     """
     # Check if PEP 723 metadata already exists
+    code = update_script_with_corrected_metadata(code)
     if re.search(r"^# /// script[\s\S]*?# ///", code, re.MULTILINE):
         return code
     
