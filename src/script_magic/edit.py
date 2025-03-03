@@ -16,6 +16,7 @@ from textual.containers import Container
 from textual import events
 from textual.binding import Binding
 from textual.screen import ModalScreen
+from textual.worker import Worker, WorkerState
 
 from script_magic.mapping_manager import get_mapping_manager
 from script_magic.github_integration import (
@@ -24,6 +25,7 @@ from script_magic.github_integration import (
 )
 from script_magic.rich_output import console
 from script_magic.logger import get_logger
+from script_magic.pydantic_ai_integration import edit_script as ai_edit_script
 
 # Set up logger
 logger = get_logger(__name__)
@@ -145,6 +147,11 @@ class ScriptEditor(App):
         self.script_info = script_info
         # Store metadata for later use
         self.metadata = script_info.get("metadata", {})
+        # Store updated description and tags
+        self.updated_description = description
+        self.updated_tags = []
+        # Store AI processing results
+        self.ai_results = None
     
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -275,17 +282,72 @@ class ScriptEditor(App):
             await self.process_prompt(prompt_text)
     
     async def process_prompt(self, prompt: str) -> None:
-        """Process the user's prompt (placeholder implementation)."""
-        # This is where you would implement the AI processing logic
-        self.notify("Prompt processing is not yet implemented", timeout=3)
+        """Process the user's prompt using AI to edit the script."""
+        try:
+            self.notify("Processing script with AI...", timeout=3)
+            
+            # Get current content from the editor
+            editor = self.query_one("#editor", TextArea)
+            current_script = editor.text
+            
+            # Create a worker to process the AI edit
+            def ai_worker():
+                try:
+                    # Import inside the function to avoid circular imports
+                    from script_magic.pydantic_ai_integration import edit_script as ai_edit_script
+                    
+                    # Use the AI to edit the script
+                    edited_script, updated_description, updated_tags = ai_edit_script(
+                        current_script, 
+                        prompt
+                    )
+                    return edited_script, updated_description, updated_tags
+                except Exception as e:
+                    logger.error(f"AI worker error: {str(e)}", exc_info=True)
+                    return None, None, None
+            
+            # Create and run the worker (use thread=True since AI processing is CPU-intensive)
+            self.run_worker(ai_worker, thread=True)
+            
+        except Exception as e:
+            logger.error(f"Failed to process prompt with AI: {str(e)}", exc_info=True)
+            self.notify(f"Error processing with AI: {str(e)}", timeout=5, severity="error")
+
+    def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
+        """Handle worker state changes."""
+        worker = event.worker
         
-        # Simple placeholder - just insert a comment with the prompt
-        editor = self.query_one("#editor", TextArea)
-        cursor = editor.cursor_location
-        comment_text = f"# PROMPT: {prompt}\n"
-        editor.insert(comment_text, cursor)
-        
-        logger.info(f"User submitted prompt: {prompt}")
+        if worker.state == WorkerState.SUCCESS:
+            # Worker completed successfully
+            result = worker.result
+            if result:
+                edited_script, updated_description, updated_tags = result
+                
+                if edited_script:
+                    # Update the editor with the edited script
+                    editor = self.query_one("#editor", TextArea)
+                    editor.text = edited_script
+                    
+                    # Store the updated description and tags for later use
+                    self.updated_description = updated_description
+                    self.updated_tags = updated_tags
+                    
+                    # Make sure we know the content has changed
+                    self.saved = False
+                    
+                    self.notify("✓ Script updated with AI-generated changes!", timeout=3)
+            else:
+                self.notify("AI processing returned no results", timeout=3, severity="warning")
+                
+        elif worker.state == WorkerState.ERROR:
+            # Worker encountered an error
+            error = worker.error
+            logger.error(f"Worker error: {error}", exc_info=True)
+            self.notify(f"Error in AI processing: {str(error)}", timeout=5, severity="error")
+            
+        elif worker.state == WorkerState.CANCELLED:
+            # Worker was cancelled
+            self.notify("AI processing was cancelled", timeout=2)
 
 def edit_script(script_name: str) -> bool:
     """

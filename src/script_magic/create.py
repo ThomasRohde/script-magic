@@ -11,7 +11,7 @@ import click
 
 # Import integration modules
 from script_magic.pydantic_ai_integration import (
-    process_prompt, display_script, interactive_refinement, extract_metadata_tags
+    process_prompt, display_script, interactive_refinement
 )
 from script_magic.github_integration import upload_script_to_gist, GitHubIntegrationError
 from script_magic.mapping_manager import get_mapping_manager
