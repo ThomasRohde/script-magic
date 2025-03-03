@@ -11,9 +11,11 @@ import click
 from typing import Dict, Any
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, TextArea, Static
+from textual.widgets import Header, Footer, TextArea, Static, Input
+from textual.containers import Container
 from textual import events
 from textual.binding import Binding
+from textual.screen import ModalScreen
 
 from script_magic.mapping_manager import get_mapping_manager
 from script_magic.github_integration import (
@@ -25,6 +27,66 @@ from script_magic.logger import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
+
+class PromptModal(ModalScreen):
+    """A modal screen for entering a prompt."""
+    
+    DEFAULT_CSS = """
+    PromptModal {
+        align: center middle;
+    }
+    
+    #prompt-container {
+        width: 80%;
+        height: auto;
+        background: #222222;
+        padding: 2 4;
+        border: solid #444444;
+    }
+    
+    #prompt-title {
+        text-align: center;
+        width: 100%;
+        margin-bottom: 1;
+    }
+    
+    #prompt-input {
+        width: 100%;
+        margin-bottom: 1;
+    }
+    
+    #button-container {
+        width: 100%;
+        height: auto;
+        align: center middle;
+        margin-top: 1;
+    }
+    
+    Button {
+        margin-right: 2;
+    }
+    """
+    
+    def __init__(self):
+        super().__init__()
+        self.result = None
+    
+    def compose(self) -> ComposeResult:
+        """Compose the prompt modal."""
+        with Container(id="prompt-container"):
+            yield Static("Enter your prompt", id="prompt-title")
+            yield Input(placeholder="Type your prompt here...", id="prompt-input")
+            yield Static("Press ENTER to submit or ESC to cancel", id="button-container")
+    
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle the prompt submission."""
+        self.result = event.value
+        self.dismiss(True)
+    
+    def on_key(self, event: events.Key) -> None:
+        """Handle key events."""
+        if event.key == "escape":
+            self.dismiss(False)
 
 class ScriptEditor(App):
     """A Textual app for editing Python scripts."""
@@ -65,6 +127,7 @@ class ScriptEditor(App):
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+r", "reload", "Reload"),
+        Binding("ctrl+p", "prompt", "Prompt"),
     ]
     
     def __init__(self, script_name: str, script_content: str, gist_id: str, 
@@ -93,15 +156,35 @@ class ScriptEditor(App):
     
     def on_mount(self) -> None:
         """Handle the mount event."""
-        editor = self.query_one("#editor", TextArea)
-        editor.focus()
+        try:
+            editor = self.query_one("#editor", TextArea)
+            editor.focus()
+            # Mark the app as fully initialized
+            self._initialized = True
+        except Exception as e:
+            logger.error(f"Error in on_mount: {e}", exc_info=True)
+            self._initialized = False
     
     def on_key(self, event: events.Key) -> None:
         """Handle keyboard events for enhanced Python editing."""
-        # Skip if not in editor
-        editor = self.query_one("#editor", TextArea)
-        if not editor.has_focus:
-            return
+        try:
+            # Check if the app is fully initialized and editor exists
+            if not hasattr(self, "_initialized") or not self._initialized:
+                return
+                
+            # Try to get the editor, but don't crash if it's not there
+            try:
+                editor = self.query_one("#editor", TextArea)
+                if not editor.has_focus:
+                    return
+                # Add any editor-specific key handling logic here
+            except Exception as e:
+                # Just log the error and continue
+                logger.debug(f"Editor not available during key event: {e}")
+                return
+        except Exception as e:
+            # Catch all exceptions to prevent app crashes
+            logger.error(f"Error in on_key: {e}", exc_info=True)
     
     def action_save(self) -> None:
         """Save the script locally"""
@@ -174,6 +257,35 @@ class ScriptEditor(App):
         except Exception as e:
             logger.error(f"Failed to reload script: {str(e)}", exc_info=True)
             self.notify(f"Error reloading script: {str(e)}", timeout=3, severity="error")
+    
+    def action_prompt(self) -> None:
+        """Show a prompt dialog to get user input."""
+        # Start the worker that will show the prompt modal
+        self.run_worker(self._show_prompt_modal())
+    
+    async def _show_prompt_modal(self) -> None:
+        """Worker that shows the prompt modal and processes the result."""
+        prompt_modal = PromptModal()
+        result = await self.push_screen(prompt_modal, wait_for_dismiss=True)
+        if result and prompt_modal.result:
+            prompt_text = prompt_modal.result
+            self.notify(f"Processing prompt: {prompt_text[:30]}{'...' if len(prompt_text) > 30 else ''}", timeout=3)
+            
+            # Process the prompt
+            await self.process_prompt(prompt_text)
+    
+    async def process_prompt(self, prompt: str) -> None:
+        """Process the user's prompt (placeholder implementation)."""
+        # This is where you would implement the AI processing logic
+        self.notify("Prompt processing is not yet implemented", timeout=3)
+        
+        # Simple placeholder - just insert a comment with the prompt
+        editor = self.query_one("#editor", TextArea)
+        cursor = editor.cursor_location
+        comment_text = f"# PROMPT: {prompt}\n"
+        editor.insert(comment_text, cursor)
+        
+        logger.info(f"User submitted prompt: {prompt}")
 
 def edit_script(script_name: str) -> bool:
     """
