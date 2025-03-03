@@ -1,6 +1,6 @@
 # Script Magic 🪄
 
-Script Magic is a CLI tool for creating, managing, and running Python scripts with GitHub Gists integration and AI-powered script generation.
+Command-line script utility toolkit that simplifies common scripting tasks.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -18,6 +18,10 @@ Script Magic is a CLI tool for creating, managing, and running Python scripts wi
 - 🖋️ **Syntax Highlighting**: Built-in code editor with syntax highlighting (requires optional dependencies)
 
 ## Installation
+
+```bash
+pip install script-magic
+```
 
 ### Prerequisites
 
@@ -51,6 +55,14 @@ pip install 'script-magic[syntax]'
 ```
 
 ## Usage
+
+```python
+# Import the library
+from script_magic import some_function
+
+# Use the command-line tool
+sm --help
+```
 
 ### Creating Scripts
 
@@ -226,3 +238,4 @@ To install development dependencies:
 ```bash
 pip install -e '.[dev,syntax]'
 ```
+````

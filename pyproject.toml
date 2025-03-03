@@ -1,9 +1,22 @@
 [project]
 name = "script-magic"
 version = "1.0.0"
-description = "Add your description here"
+description = "Command-line script utility toolkit that simplifies common scripting tasks with AI-powered script generation, GitHub Gist integration for cross-device synchronization, and automatic dependency management. Create, run, and manage scripts with natural language prompts."
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+  { name = "Thomas Klok Rohde", email = "rohde.thomas@gmail.com" },
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "click>=8.1.8",
     "pydantic-ai>=0.0.30",
@@ -14,9 +27,14 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project.scripts]
-sm = "script_magic:sm" 
+sm = "script_magic:sm"
 
+[project.urls]
+"Homepage" = "https://github.com/ThomasRohde/script-magic"
+"Bug Tracker" = "https://github.com/ThomasRohde/script-magic/issues"
+"Documentation" = "https://github.com/ThomasRohde/script-magic#readme"
+"Source Code" = "https://github.com/ThomasRohde/script-magic"
