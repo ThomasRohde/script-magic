@@ -7,12 +7,14 @@ This module allows users to edit scripts using a Textual TUI.
 import os
 import sys
 import click
-from typing import Optional, Dict, Any
+import autopep8
+from typing import Optional, Dict, Any, Tuple
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, TextArea
-from textual.containers import Container, Vertical
+from textual.widgets import Header, Footer, TextArea, Static
+from textual.containers import Container, Vertical, Horizontal
 from textual import events
+from textual.binding import Binding
 
 from script_magic.mapping_manager import get_mapping_manager
 from script_magic.github_integration import (
@@ -27,7 +29,7 @@ from script_magic.logger import get_logger
 logger = get_logger(__name__)
 
 class ScriptEditor(App):
-    """A Textual app for editing scripts."""
+    """A Textual app for editing Python scripts."""
     
     CSS = """
     Screen {
@@ -39,20 +41,32 @@ class ScriptEditor(App):
         height: 100%;
     }
     
+    Horizontal {
+        height: 1fr;
+    }
+    
     TextArea {
-        height: 1fr;  /* Takes all available space in the vertical layout */
+        height: 1fr;
         border: solid #333333;
         background: #1e1e1e;
         color: #e0e0e0;
-        margin: 1 1;
+        margin: 0 0;
+    }
+    
+    .status-bar {
+        height: auto;
+        background: #007acc;
+        color: white;
+        padding: 0 1;
     }
     """
     
     BINDINGS = [
-        ("ctrl+s", "save", "Save"),
-        ("ctrl+q", "quit", "Quit"),
-        ("ctrl+r", "reload", "Reload"),
-        ("f1", "help", "Help")
+        Binding("ctrl+s", "save", "Save"),
+        Binding("ctrl+q", "quit", "Quit"),
+        Binding("ctrl+r", "reload", "Reload"),
+        Binding("ctrl+f", "format", "Format (PEP 8)"),
+        Binding("f1", "help", "Help")
     ]
     
     def __init__(self, script_name: str, script_content: str, gist_id: str, 
@@ -74,9 +88,22 @@ class ScriptEditor(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
-        with Vertical():
-            yield TextArea(self.script_content, language="python", id="editor")
+        # Use TextArea.code_editor directly which already has line numbers enabled
+        yield TextArea.code_editor(self.script_content, language="python", id="editor")
+        yield Static(f"File: {self.script_name} | Python Editor", classes="status-bar")
         yield Footer()
+    
+    def on_mount(self) -> None:
+        """Handle the mount event."""
+        editor = self.query_one("#editor", TextArea)
+        editor.focus()
+    
+    def on_key(self, event: events.Key) -> None:
+        """Handle keyboard events for enhanced Python editing."""
+        # Skip if not in editor
+        editor = self.query_one("#editor", TextArea)
+        if not editor.has_focus:
+            return
     
     def action_save(self) -> None:
         """Save the script locally"""
@@ -150,16 +177,40 @@ class ScriptEditor(App):
             logger.error(f"Failed to reload script: {str(e)}", exc_info=True)
             self.notify(f"Error reloading script: {str(e)}", timeout=3, severity="error")
     
+    def action_format(self) -> None:
+        """Format the Python code according to PEP 8."""
+        try:
+            editor = self.query_one("#editor", TextArea)
+            current_code = editor.text
+            
+            # Use autopep8 to format the code
+            formatted_code = autopep8.fix_code(
+                current_code,
+                options={"aggressive": 1}
+            )
+            
+            # Update the editor with the formatted code
+            if formatted_code != current_code:
+                editor.text = formatted_code
+                self.notify("Code formatted according to PEP 8", timeout=3)
+            else:
+                self.notify("Code already follows PEP 8 guidelines", timeout=3)
+                
+        except Exception as e:
+            logger.error(f"Failed to format code: {str(e)}", exc_info=True)
+            self.notify(f"Error formatting code: {str(e)}", timeout=3, severity="error")
+    
     def action_help(self) -> None:
         """Show help information."""
         self.notify(
-            "Keyboard Shortcuts: Ctrl+S to save, Ctrl+Q to quit, Ctrl+R to reload, F1 for help",
+            "Python Editor Shortcuts: Ctrl+S: save, Ctrl+Q: quit, Ctrl+F: format (PEP 8), "
+            "Ctrl+R: reload, Tab: indent, F1: help",
             timeout=5
         )
 
 def edit_script(script_name: str) -> bool:
     """
-    Edit a script using Textual TUI.
+    Edit a Python script using Textual TUI.
     
     Args:
         script_name: Name of the script to edit
@@ -167,7 +218,7 @@ def edit_script(script_name: str) -> bool:
     Returns:
         bool: True if successful, False otherwise
     """
-    logger.info(f"Opening script '{script_name}' for editing")
+    logger.info(f"Opening Python script '{script_name}' for editing")
     
     try:
         # Get the mapping manager and look up the script
@@ -199,7 +250,7 @@ def edit_script(script_name: str) -> bool:
                 return False
             
             # Download the script content from GitHub
-            console.print(f"[bold blue]Downloading script '{script_name}' from GitHub...[/bold blue]")
+            console.print(f"[bold blue]Downloading Python script '{script_name}' from GitHub...[/bold blue]")
             try:
                 content, metadata = download_script_from_gist(gist_id)
                 # Try to save to local storage for future use
@@ -210,15 +261,28 @@ def edit_script(script_name: str) -> bool:
             except GitHubIntegrationError as e:
                 console.print(f"[yellow]Warning: Could not download from GitHub: {str(e)}[/yellow]")
                 console.print("[yellow]Please fix GitHub integration or save a local copy.[/yellow]")
-                # Create an empty script if none exists
-                content = "# Write your script here\n"
+                # Create an empty Python script template if none exists
+                content = """#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+\"\"\"
+Script: {script_name}
+Description: Add description here
+\"\"\"
+
+def main():
+    \"\"\"Main function\"\"\"
+    print("Hello from {script_name}!")
+
+if __name__ == "__main__":
+    main()
+""".format(script_name=script_name)
         
         # Get description
         description = ""
         if "metadata" in script_info and "description" in script_info["metadata"]:
             description = script_info["metadata"]["description"]
         if not description:
-            description = f"SM Tool script: {script_name}"
+            description = f"Python script: {script_name}"
             
         gist_id = script_info.get("gist_id", "")
         
@@ -232,12 +296,12 @@ def edit_script(script_name: str) -> bool:
             script_info=script_info
         )
         
-        console.print(f"[bold blue]Opening editor for '{script_name}'...[/bold blue]")
+        console.print(f"[bold blue]Opening Python editor for '{script_name}'...[/bold blue]")
         app.run()
         
         # Check if the script was saved
         if getattr(app, "saved", False):
-            console.print(f"[bold green]✓ Script '{script_name}' saved successfully![/bold green]")
+            console.print(f"[bold green]✓ Python script '{script_name}' saved successfully![/bold green]")
             return True
         else:
             console.print(f"[yellow]Editing of script '{script_name}' was cancelled.[/yellow]")
@@ -256,7 +320,7 @@ def edit_script(script_name: str) -> bool:
 @click.argument('script_name')
 def cli(script_name: str) -> None:
     """
-    Edit an existing script in a text editor.
+    Edit an existing Python script in a text editor.
     
     SCRIPT_NAME: Name of the script to edit
     """
