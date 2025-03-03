@@ -5,7 +5,6 @@ import os
 import sys
 import click
 import subprocess
-import tempfile
 from typing import List, Tuple
 
 from script_magic.mapping_manager import get_mapping_manager
@@ -15,23 +14,30 @@ from script_magic.github_integration import download_script_from_gist, GitHubInt
 # Set up logger for this module
 logger = get_logger(__name__)
 
+# Define all Script Magic run command options here for easier reference
+SM_OPTIONS = ['refresh', 'r', 'dry-run', 'verbose', 'v', 'in-terminal', 't']
+
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument('script_name')
-@click.argument('script_args', nargs=-1, type=click.UNPROCESSED)
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
 @click.option('--refresh', '-r', is_flag=True, help='Force refresh the script from GitHub')
 @click.option('--dry-run', is_flag=True, help='Download the script but don\'t execute it')
 @click.option('--verbose', '-v', is_flag=True, help='Display more detailed output')
 @click.option('--in-terminal', '-t', is_flag=True, help='Run script in a new terminal window')
-def cli(script_name: str, script_args: List[str], refresh: bool, dry_run: bool, verbose: bool, in_terminal: bool):
+def cli(script_name: str, args: List[str], refresh: bool, dry_run: bool, verbose: bool, in_terminal: bool):
     """
     Run a Python script stored in a GitHub Gist.
     
     SCRIPT_NAME is the name of the script to run.
     
-    SCRIPT_ARGS are arguments passed directly to the script. To ensure they aren't 
-    interpreted by Script Magic, you can use a double dash separator:
+    ARGS are arguments passed to the script. Script Magic will intelligently 
+    determine which options are for itself and which are for the script.
     
-    sm run my-script -- --script-option1 --script-option2 value
+    For example:
+    sm run my-script --arg1 value1 --arg2
+    
+    You can also use double dashes to explicitly separate Script Magic options from script options:
+    sm run my-script --refresh -- --arg1 value1 --arg2
     """
     try:
         # Set up more verbose logging if requested
@@ -41,6 +47,9 @@ def cli(script_name: str, script_args: List[str], refresh: bool, dry_run: bool, 
             set_log_level(logging.DEBUG)
             set_console_log_level(logging.INFO)  # Show INFO messages in console when verbose
             logger.debug("Verbose mode enabled")
+        
+        # Parse arguments to separate Script Magic options from script arguments
+        script_args = parse_arguments(args)
         
         logger.info(f"Running script '{script_name}'")
         if script_args:
@@ -67,6 +76,53 @@ def cli(script_name: str, script_args: List[str], refresh: bool, dry_run: bool, 
         logger.error(f"Error running script '{script_name}': {str(e)}")
         click.echo(f"Error: {str(e)}", err=True)
         sys.exit(1)
+
+def parse_arguments(args: List[str]) -> List[str]:
+    """
+    Parse arguments to separate Script Magic options from script arguments.
+    
+    This function handles both explicit separation using -- and implicit
+    separation by identifying known Script Magic options.
+    
+    Args:
+        args: List of command line arguments
+        
+    Returns:
+        List[str]: Arguments to be passed to the script
+    """
+    # Check for double dash separator
+    if '--' in args:
+        separator_index = args.index('--')
+        # Return everything after the separator
+        return list(args[separator_index+1:])
+    
+    # Without a separator, we need to be smart about distinguishing options
+    script_args = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        # Check if this arg is a Script Magic option
+        is_sm_option = False
+        
+        if arg.startswith('--'):
+            option = arg[2:]
+            is_sm_option = option in SM_OPTIONS
+        elif arg.startswith('-'):
+            option = arg[1:]
+            is_sm_option = option in SM_OPTIONS
+            
+        # If it's not a Script Magic option, it and all subsequent args are for the script
+        if not is_sm_option:
+            script_args.extend(args[i:])
+            break
+        
+        # Skip this option and its value if it's not a flag
+        if option not in ['refresh', 'r', 'dry-run', 'verbose', 'v', 'in-terminal', 't']:
+            i += 2  # Skip option and its value
+        else:
+            i += 1  # Skip just the option
+            
+    return script_args
 
 def lookup_script(script_name: str, refresh: bool = False) -> Tuple[str, str]:
     """
