@@ -245,37 +245,60 @@ def execute_script_in_terminal(script_path: str, params: List[str]) -> None:
     # Build the command to execute the script with uv
     cmd = ["uv", "run", script_path]
     cmd.extend(params)
-    cmd_str = " ".join(cmd)
     
     try:
         if sys.platform == 'win32':
             # Windows: Use cmd.exe with /k flag to keep the window open after execution
-            subprocess.Popen(
-                ['start', 'cmd', '/k', f"{cmd_str} & echo. & echo Press any key to close... & pause > nul"], 
-                shell=True
-            )
+            # Use list form to avoid Windows argument parsing issues
+            full_cmd = [
+                'cmd.exe', 
+                '/k', 
+                'uv', 'run', script_path, 
+                *params,  # Unpack the parameters directly
+                '&', 'echo.', '&', 'echo', 'Press any key to close...', '&', 'pause', '>', 'nul'
+            ]
+            # Use shell=False and pass arguments as a list to avoid string parsing
+            subprocess.Popen(['start'] + full_cmd, shell=True, close_fds=True)
+            
         elif sys.platform == 'darwin':
-            # macOS: Use Terminal.app with a command that keeps the terminal open
-            # The "read -n 1" waits for a keypress
+            # macOS: Use Terminal.app with properly escaped command
+            # Escape quotes in params for AppleScript
+            escaped_params = []
+            for param in params:
+                # Escape any double quotes in the parameter
+                escaped_param = param.replace('"', '\\"')
+                # Add quotes around the parameter
+                escaped_params.append(f'"{escaped_param}"')
+            
+            # Build the command string with proper escaping
+            params_str = " ".join(escaped_params)
+            cmd_str = f'uv run "{script_path}" {params_str}'
+            
             apple_script = f'''
             tell application "Terminal"
                 do script "{cmd_str}; echo; echo Press any key to close...; read -n 1"
             end tell
             '''
             subprocess.Popen(['osascript', '-e', apple_script])
+            
         else:
-            # Linux and other Unix-based systems: Try common terminal emulators
+            # Linux and other Unix-based systems
             terminal_found = False
             for terminal in ['gnome-terminal', 'xterm', 'konsole', 'xfce4-terminal']:
                 try:
+                    # Build a properly escaped command
+                    escaped_cmd = ['uv', 'run', script_path] + params
+                    escaped_cmd_str = " ".join(f'"{arg}"' if ' ' in arg else arg for arg in escaped_cmd)
+                    
                     if terminal == 'gnome-terminal':
-                        # For gnome-terminal, use bash -c to chain commands
-                        terminal_cmd = f"{cmd_str}; echo; echo Press Enter to close...; read"
+                        # For gnome-terminal, use array for commands
+                        terminal_cmd = f"{escaped_cmd_str}; echo; echo Press Enter to close...; read"
                         subprocess.Popen([terminal, '--', 'bash', '-c', terminal_cmd])
                     else:
                         # For other terminals, similar approach
-                        terminal_cmd = f"{cmd_str}; echo; echo Press Enter to close...; read"
+                        terminal_cmd = f"{escaped_cmd_str}; echo; echo Press Enter to close...; read"
                         subprocess.Popen([terminal, '-e', f'bash -c "{terminal_cmd}"'])
+                    
                     terminal_found = True
                     break
                 except FileNotFoundError:
