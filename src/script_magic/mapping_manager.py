@@ -490,7 +490,7 @@ class MappingManager:
             mapping_data = self._read_mapping()
             
             # Make sure the script exists in the mapping
-            if script_name not in mapping_data.get("scripts", {}):
+            if (script_name not in mapping_data.get("scripts", {})):
                 # Create a new script entry if it doesn't exist
                 mapping_data["scripts"][script_name] = {}
                 logger.info(f"Creating new entry for script '{script_name}' in mapping file")
@@ -520,6 +520,98 @@ class MappingManager:
         except Exception as e:
             logger.error(f"Failed to update script '{script_name}': {str(e)}")
             raise
+
+    def push_all_scripts(self) -> dict:
+        """
+        Push all local scripts to GitHub Gists.
+        
+        Returns:
+            dict: Dictionary with results {"success": list of script names, "failed": list of script names}
+        """
+        results = {"success": [], "failed": []}
+        scripts = self.list_scripts()
+        
+        for script in scripts:
+            script_name = script["name"]
+            # Load the local script content
+            content = self.load_script_locally(script_name)
+            
+            if not content:
+                logger.warning(f"No local content found for script '{script_name}', skipping")
+                results["failed"].append(script_name)
+                continue
+                
+            try:
+                # Get the existing Gist ID or None if it's new
+                script_info = self.lookup_script(script_name)
+                gist_id = script_info.get('gist_id') if script_info else None
+                
+                if gist_id:
+                    # Update existing Gist
+                    from script_magic.github_integration import update_gist
+                    update_gist(gist_id, script_name, content)
+                else:
+                    # Create new Gist
+                    from script_magic.github_integration import upload_script_to_gist
+                    description = f"[script-magic] {script_name}"
+                    new_gist_id = upload_script_to_gist(script_name, content, description)
+                    # Update the mapping with the new Gist ID
+                    self.add_script(script_name, new_gist_id, sync=False)
+                    
+                results["success"].append(script_name)
+                logger.info(f"Successfully pushed script '{script_name}' to GitHub")
+            except Exception as e:
+                logger.error(f"Failed to push script '{script_name}': {str(e)}")
+                results["failed"].append(script_name)
+                
+        # Finally, push the mapping file
+        try:
+            self.push_mapping()
+        except Exception as e:
+            logger.error(f"Failed to push mapping file: {str(e)}")
+            
+        return results
+    
+    def pull_all_scripts(self) -> dict:
+        """
+        Pull all scripts from GitHub Gists based on the mapping.
+        
+        Returns:
+            dict: Dictionary with results {"success": list of script names, "failed": list of script names}
+        """
+        # First pull the mapping file
+        mapping_pulled = self.pull_mapping()
+        if not mapping_pulled:
+            logger.error("Failed to pull mapping file from GitHub")
+            return {"success": [], "failed": ["mapping_file"]}
+            
+        results = {"success": [], "failed": []}
+        scripts = self.list_scripts()
+        
+        for script in scripts:
+            script_name = script["name"]
+            gist_id = script.get("gist_id")
+            
+            if not gist_id:
+                logger.warning(f"No Gist ID for script '{script_name}', skipping")
+                results["failed"].append(script_name)
+                continue
+                
+            try:
+                # Download the script content from the Gist
+                from script_magic.github_integration import download_script_from_gist
+                content, _ = download_script_from_gist(gist_id)
+                
+                # Save the script locally
+                self.save_script_locally(script_name, content)
+                
+                results["success"].append(script_name)
+                logger.info(f"Successfully pulled script '{script_name}' from GitHub")
+            except Exception as e:
+                logger.error(f"Failed to pull script '{script_name}': {str(e)}")
+                results["failed"].append(script_name)
+                
+        return results
 
 # Helper functions for easier import/use
 _mapping_manager_instance = None

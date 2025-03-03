@@ -202,3 +202,40 @@ def get_mapping_from_gist(mapping_gist_id: str) -> dict:
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in mapping file from Gist {mapping_gist_id}: {e}")
         raise GitHubIntegrationError(f"Invalid JSON in mapping file: {e}")
+
+def update_gist(gist_id: str, script_name: str, script_content: str) -> bool:
+    """
+    Update an existing GitHub Gist.
+    
+    Args:
+        gist_id: The ID of the Gist to update
+        script_name: Name of the script
+        script_content: New content for the script
+        
+    Returns:
+        bool: True if update was successful
+        
+    Raises:
+        GitHubIntegrationError: If Gist update fails
+    """
+    try:
+        client = get_github_client()
+        gist = client.get_gist(gist_id)
+        
+        filename = f"{script_name}.py"
+        # Some Gists might use a different filename, so find the Python file
+        existing_files = list(gist.files.values())
+        py_files = [f for f in existing_files if f.filename.endswith('.py')]
+        
+        if py_files:
+            # Use the existing filename
+            filename = py_files[0].filename
+            
+        gist.edit(
+            files={filename: InputFileContent(script_content)}
+        )
+        logger.info(f"Updated content of script '{script_name}' in Gist {gist_id}")
+        return True
+    except GithubException as e:
+        logger.error(f"Failed to update Gist {gist_id} for script '{script_name}': {e}")
+        raise GitHubIntegrationError(f"Failed to update script in GitHub Gist: {e}")
