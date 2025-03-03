@@ -180,47 +180,26 @@ def execute_script_in_terminal(script_path: str, params: List[str]) -> None:
     Raises:
         Exception: If the script execution fails
     """
-    # Create a wrapper script that will run our script and wait for user input before closing
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
-        wrapper_path = f.name
-        f.write(f'''
-import subprocess
-import sys
-import os
-
-def main():
-    print("Running script: {os.path.basename(script_path)}")
-    cmd = ["uv", "run", r"{script_path}"]
-    cmd.extend({repr(list(params))})
+    logger.info(f"Executing script in new terminal window: {script_path}")
+    
+    # Build the command to execute the script with uv
+    cmd = ["uv", "run", script_path]
+    cmd.extend(params)
+    cmd_str = " ".join(cmd)
     
     try:
-        result = subprocess.run(cmd, text=True)
-        if result.returncode != 0:
-            print(f"\\nScript exited with status code: {{result.returncode}}")
-    except Exception as e:
-        print(f"\\nError running script: {{e}}")
-
-    print("\\nPress Enter to close this terminal...")
-    input()
-
-if __name__ == "__main__":
-    main()
-''')
-    
-    try:
-        logger.info(f"Executing script in new terminal window: {script_path}")
-        
         if sys.platform == 'win32':
-            # Windows: Use cmd.exe to start a new terminal window
+            # Windows: Use cmd.exe with /k flag to keep the window open after execution
             subprocess.Popen(
-                ['start', 'cmd', '/k', 'uv', 'run', wrapper_path], 
+                ['start', 'cmd', '/k', f"{cmd_str} & echo. & echo Press any key to close... & pause > nul"], 
                 shell=True
             )
         elif sys.platform == 'darwin':
-            # macOS: Use Terminal.app
+            # macOS: Use Terminal.app with a command that keeps the terminal open
+            # The "read -n 1" waits for a keypress
             apple_script = f'''
             tell application "Terminal"
-                do script "uv run '{wrapper_path}'"
+                do script "{cmd_str}; echo; echo Press any key to close...; read -n 1"
             end tell
             '''
             subprocess.Popen(['osascript', '-e', apple_script])
@@ -230,9 +209,13 @@ if __name__ == "__main__":
             for terminal in ['gnome-terminal', 'xterm', 'konsole', 'xfce4-terminal']:
                 try:
                     if terminal == 'gnome-terminal':
-                        subprocess.Popen([terminal, '--', 'uv', 'run', wrapper_path])
+                        # For gnome-terminal, use bash -c to chain commands
+                        terminal_cmd = f"{cmd_str}; echo; echo Press Enter to close...; read"
+                        subprocess.Popen([terminal, '--', 'bash', '-c', terminal_cmd])
                     else:
-                        subprocess.Popen([terminal, '-e', f'uv run {wrapper_path}'])
+                        # For other terminals, similar approach
+                        terminal_cmd = f"{cmd_str}; echo; echo Press Enter to close...; read"
+                        subprocess.Popen([terminal, '-e', f'bash -c "{terminal_cmd}"'])
                     terminal_found = True
                     break
                 except FileNotFoundError:
@@ -246,10 +229,5 @@ if __name__ == "__main__":
         logger.info(f"Script '{os.path.basename(script_path)}' launched in new terminal window")
         
     except Exception as e:
-        # Clean up the wrapper script in case of error
-        try:
-            os.unlink(wrapper_path)
-        except:
-            pass
         logger.error(f"Failed to execute script in terminal: {str(e)}")
         raise click.ClickException(f"Failed to execute script in terminal: {str(e)}")
