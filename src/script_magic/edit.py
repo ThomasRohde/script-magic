@@ -7,7 +7,7 @@ This module allows users to edit scripts using a Textual TUI.
 import os
 import sys
 import click
-import autopep8
+# autopep8 import removed
 from typing import Optional, Dict, Any, Tuple
 
 from textual.app import App, ComposeResult
@@ -65,7 +65,6 @@ class ScriptEditor(App):
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+r", "reload", "Reload"),
-        Binding("ctrl+f", "format", "Format (PEP 8)"),
         Binding("f1", "help", "Help")
     ]
     
@@ -177,33 +176,10 @@ class ScriptEditor(App):
             logger.error(f"Failed to reload script: {str(e)}", exc_info=True)
             self.notify(f"Error reloading script: {str(e)}", timeout=3, severity="error")
     
-    def action_format(self) -> None:
-        """Format the Python code according to PEP 8."""
-        try:
-            editor = self.query_one("#editor", TextArea)
-            current_code = editor.text
-            
-            # Use autopep8 to format the code
-            formatted_code = autopep8.fix_code(
-                current_code,
-                options={"aggressive": 1}
-            )
-            
-            # Update the editor with the formatted code
-            if formatted_code != current_code:
-                editor.text = formatted_code
-                self.notify("Code formatted according to PEP 8", timeout=3)
-            else:
-                self.notify("Code already follows PEP 8 guidelines", timeout=3)
-                
-        except Exception as e:
-            logger.error(f"Failed to format code: {str(e)}", exc_info=True)
-            self.notify(f"Error formatting code: {str(e)}", timeout=3, severity="error")
-    
     def action_help(self) -> None:
         """Show help information."""
         self.notify(
-            "Python Editor Shortcuts: Ctrl+S: save, Ctrl+Q: quit, Ctrl+F: format (PEP 8), "
+            "Python Editor Shortcuts: Ctrl+S: save, Ctrl+Q: quit, "
             "Ctrl+R: reload, Tab: indent, F1: help",
             timeout=5
         )
