@@ -7,6 +7,7 @@ from script_magic.create import cli as create_command
 from script_magic.run import cli as run_command
 from script_magic.list import cli as list_command
 from script_magic.delete import cli as delete_command
+from script_magic.edit import cli as edit_command
 from script_magic.mapping_setup import setup_mapping
 from script_magic.logger import get_logger, set_log_level
 from script_magic.mapping_manager import get_mapping_manager
@@ -33,13 +34,13 @@ def sm(debug):
         # Continue anyway to allow local operation
 
 @click.command()
-def sync():
+def push():
     """Manually sync your script inventory with GitHub."""
     try:
         console.print("[bold blue]Syncing mapping with GitHub...[/bold blue]")
         mapping_manager = get_mapping_manager()
         
-        if mapping_manager.sync_mapping():
+        if mapping_manager.push_mapping():
             console.print("[bold green]✓ Mapping synced successfully![/bold green]")
             return True
         else:
@@ -71,7 +72,8 @@ sm.add_command(create_command, name='create')
 sm.add_command(run_command, name='run')
 sm.add_command(list_command, name='list')
 sm.add_command(delete_command, name='delete')
-sm.add_command(sync, name='sync')
+sm.add_command(edit_command, name='edit')
+sm.add_command(push, name='push')
 sm.add_command(pull, name='pull')
 
 if __name__ == '__main__':

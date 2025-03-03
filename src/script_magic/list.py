@@ -102,7 +102,7 @@ def list_scripts(verbose: bool = False, push: bool = False, pull: bool = False) 
         # Push to GitHub if requested
         if push:
             console.print(Panel("Pushing mapping to GitHub...", border_style="blue"))
-            if mapping_manager.sync_mapping():
+            if mapping_manager.push_mapping():
                 console.print(Panel("✓ Mapping pushed successfully", border_style="green"))
             else:
                 console.print(Panel("⚠ Could not push mapping to GitHub", border_style="yellow"))

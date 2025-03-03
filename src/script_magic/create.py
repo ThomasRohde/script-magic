@@ -77,7 +77,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
         
         # Sync the mapping file to GitHub
         console.print("[bold blue]Syncing mapping to GitHub...[/bold blue]")
-        if mapping_manager.sync_mapping():
+        if mapping_manager.push_mapping():
             console.print("[green]✓ Mapping synced to GitHub successfully[/green]")
         else:
             console.print("[yellow]Warning: Could not sync mapping to GitHub[/yellow]")

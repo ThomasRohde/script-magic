@@ -21,6 +21,7 @@ logger = get_logger(__name__)
 DEFAULT_MAPPING_DIR = os.path.expanduser("~/.sm")
 DEFAULT_MAPPING_FILE = os.path.join(DEFAULT_MAPPING_DIR, "mapping.json")
 GIST_ID_FILE = os.path.join(DEFAULT_MAPPING_DIR, "gist_id.txt")
+LOCAL_SCRIPTS_DIR = os.path.expanduser("~/.script_magic/scripts")
 
 class MappingManager:
     def __init__(self, mapping_file: str = DEFAULT_MAPPING_FILE):
@@ -34,6 +35,9 @@ class MappingManager:
         self.gist_id = None
         self._ensure_mapping_file_exists()
         self._load_gist_id()
+        
+        # Create scripts directory if it doesn't exist
+        os.makedirs(LOCAL_SCRIPTS_DIR, exist_ok=True)
     
     def _load_gist_id(self) -> None:
         """Load the GitHub Gist ID from the gist_id file if it exists."""
@@ -118,9 +122,9 @@ class MappingManager:
             logger.error(f"Error writing to mapping file: {str(e)}")
             raise
     
-    def _sync_to_github(self) -> None:
+    def _push_to_github(self) -> None:
         """
-        Sync the local mapping file to GitHub.
+        Push the local mapping file to GitHub.
         If no gist_id exists, create a new gist.
         """
         try:
@@ -200,7 +204,7 @@ class MappingManager:
             # Automatically sync to GitHub if requested
             if sync:
                 try:
-                    self.sync_mapping()
+                    self.push_mapping()
                     logger.info(f"Automatically synced mapping to GitHub after adding script '{script_name}'")
                 except Exception as e:
                     logger.error(f"Failed to auto-sync mapping after adding script '{script_name}': {str(e)}")
@@ -282,9 +286,9 @@ class MappingManager:
             logger.error(f"Error deleting script '{script_name}': {str(e)}")
             return False
     
-    def sync_mapping(self) -> bool:
+    def push_mapping(self) -> bool:
         """
-        Sync the mapping file with GitHub Gist.
+        Push the mapping file with GitHub Gist.
         - If no gist_id is available, create a new gist
         - If gist_id exists, update the existing gist
         
@@ -292,8 +296,8 @@ class MappingManager:
             True if successful, False otherwise
         """
         try:
-            # Sync to GitHub
-            self._sync_to_github()
+            # Push to GitHub
+            self._push_to_github()
             logger.info("Mapping successfully synced to GitHub")
             return True
         except Exception as e:
@@ -361,7 +365,7 @@ class MappingManager:
         # Automatically sync to GitHub if requested
         if sync:
             try:
-                self.sync_mapping()
+                self.push_mapping()
                 logger.info(f"Automatically synced mapping to GitHub after removing script '{script_name}'")
             except Exception as e:
                 logger.error(f"Failed to auto-sync mapping after removing script '{script_name}': {str(e)}")
@@ -424,6 +428,98 @@ class MappingManager:
         except Exception as e:
             logger.error(f"Failed to sync with GitHub: {str(e)}")
             return False
+
+    def save_script_locally(self, script_name: str, content: str) -> str:
+        """
+        Save a script's content to local storage.
+        
+        Args:
+            script_name: Name of the script
+            content: Content of the script
+            
+        Returns:
+            str: Path to the saved file
+        """
+        # Create scripts directory if it doesn't exist
+        os.makedirs(LOCAL_SCRIPTS_DIR, exist_ok=True)
+        
+        # Save the script to local storage
+        file_path = os.path.join(LOCAL_SCRIPTS_DIR, f"{script_name}.py")
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        
+        logger.info(f"Saved script '{script_name}' to local storage: {file_path}")
+        return file_path
+    
+    def load_script_locally(self, script_name: str) -> Optional[str]:
+        """
+        Load a script's content from local storage.
+        
+        Args:
+            script_name: Name of the script
+            
+        Returns:
+            Optional[str]: Content of the script, or None if not found
+        """
+        file_path = os.path.join(LOCAL_SCRIPTS_DIR, f"{script_name}.py")
+        
+        if not os.path.exists(file_path):
+            logger.info(f"Local file not found for script '{script_name}'")
+            return None
+        
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            logger.info(f"Loaded script '{script_name}' from local storage")
+            return content
+        except Exception as e:
+            logger.error(f"Error loading script '{script_name}' from local storage: {str(e)}")
+            return None
+
+    def update_script(self, script_name: str, gist_id: str = None, metadata: Dict[str, Any] = None) -> None:
+        """
+        Update a script entry in the mapping file.
+        
+        Args:
+            script_name: Name of the script
+            gist_id: ID of the GitHub Gist (optional)
+            metadata: Additional metadata for the script (optional)
+        """
+        try:
+            mapping_data = self._read_mapping()
+            
+            # Make sure the script exists in the mapping
+            if script_name not in mapping_data.get("scripts", {}):
+                # Create a new script entry if it doesn't exist
+                mapping_data["scripts"][script_name] = {}
+                logger.info(f"Creating new entry for script '{script_name}' in mapping file")
+            
+            # Update the Gist ID if provided
+            if gist_id:
+                mapping_data["scripts"][script_name]["gist_id"] = gist_id
+                logger.debug(f"Updated Gist ID for script '{script_name}' to '{gist_id}'")
+                
+            # Update metadata if provided
+            if metadata:
+                if "metadata" not in mapping_data["scripts"][script_name]:
+                    mapping_data["scripts"][script_name]["metadata"] = {}
+                    
+                for key, value in metadata.items():
+                    mapping_data["scripts"][script_name]["metadata"][key] = value
+                    
+                logger.debug(f"Updated metadata for script '{script_name}'")
+            
+            # Update the last_modified timestamp
+            mapping_data["scripts"][script_name]["last_modified"] = datetime.datetime.now().isoformat()
+            
+            # Write the updated mapping back to file
+            self._write_mapping(mapping_data)
+            logger.info(f"Successfully updated script '{script_name}' in mapping file")
+            
+        except Exception as e:
+            logger.error(f"Failed to update script '{script_name}': {str(e)}")
+            raise
 
 # Helper functions for easier import/use
 _mapping_manager_instance = None
