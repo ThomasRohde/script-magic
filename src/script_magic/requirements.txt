@@ -1,0 +1,9 @@
+# Base dependencies
+click>=8.0.0
+textual>=0.38.1
+rich>=13.0.0
+pyyaml>=6.0
+requests>=2.28.0
+
+# Syntax highlighting (optional but recommended)
+textual[syntax]  # For code editor syntax highlighting

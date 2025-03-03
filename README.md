@@ -15,6 +15,7 @@ Script Magic is a CLI tool for creating, managing, and running Python scripts wi
 - 🔄 **Cross-Device Synchronization**: Automatically find and sync your script inventory across devices using GitHub Gists
 - 🔎 **Smart Gist Detection**: Automatically finds your existing script mappings on GitHub
 - 🌐 **Multi-Environment Support**: Works seamlessly across different machines with the same GitHub account
+- 🖋️ **Syntax Highlighting**: Built-in code editor with syntax highlighting (requires optional dependencies)
 
 ## Installation
 
@@ -39,6 +40,14 @@ uv pip install -e .
 # Set up your environment variables
 export OPENAI_API_KEY="your-openai-api-key"
 export MY_GITHUB_PAT="your-github-personal-access-token"
+```
+
+### Optional Dependencies
+
+For enhanced features such as syntax highlighting in the editor:
+
+```bash
+pip install 'script-magic[syntax]'
 ```
 
 ## Usage
@@ -140,6 +149,14 @@ Force deletion without confirmation:
 sm delete script-name --force
 ```
 
+### Editing Scripts
+
+Edit a script with syntax highlighting (if dependencies are installed):
+
+```bash
+script-magic edit myscript
+```
+
 ## GitHub Integration
 
 Script Magic automatically handles GitHub synchronization:
@@ -201,3 +218,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [Click](https://click.palletsprojects.com/) for the CLI interface
 - [PyGitHub](https://github.com/PyGithub/PyGithub) for GitHub API integration
 - [Rich](https://github.com/Textualize/rich) for beautiful terminal output
+
+## Development 
+
+To install development dependencies:
+
+```bash
+pip install -e '.[dev,syntax]'
+```
