@@ -15,19 +15,23 @@ from script_magic.github_integration import download_script_from_gist, GitHubInt
 # Set up logger for this module
 logger = get_logger(__name__)
 
-@click.command()
+@click.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument('script_name')
-@click.argument('params', nargs=-1)
+@click.argument('script_args', nargs=-1, type=click.UNPROCESSED)
 @click.option('--refresh', '-r', is_flag=True, help='Force refresh the script from GitHub')
 @click.option('--dry-run', is_flag=True, help='Download the script but don\'t execute it')
 @click.option('--verbose', '-v', is_flag=True, help='Display more detailed output')
 @click.option('--in-terminal', '-t', is_flag=True, help='Run script in a new terminal window')
-def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbose: bool, in_terminal: bool):
+def cli(script_name: str, script_args: List[str], refresh: bool, dry_run: bool, verbose: bool, in_terminal: bool):
     """
     Run a Python script stored in a GitHub Gist.
     
     SCRIPT_NAME is the name of the script to run.
-    PARAMS are optional parameters to pass to the script (e.g., prefix=gist).
+    
+    SCRIPT_ARGS are arguments passed directly to the script. To ensure they aren't 
+    interpreted by Script Magic, you can use a double dash separator:
+    
+    sm run my-script -- --script-option1 --script-option2 value
     """
     try:
         # Set up more verbose logging if requested
@@ -39,8 +43,8 @@ def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbo
             logger.debug("Verbose mode enabled")
         
         logger.info(f"Running script '{script_name}'")
-        if params:
-            logger.info(f"With parameters: {params}")
+        if script_args:
+            logger.info(f"With arguments: {script_args}")
             
         # Step 1: Look up the script in the mapping file
         script_path, gist_id = lookup_script(script_name, refresh)
@@ -51,9 +55,9 @@ def cli(script_name: str, params: List[str], refresh: bool, dry_run: bool, verbo
             
         # Step 2: Execute the script with uv
         if in_terminal:
-            execute_script_in_terminal(script_path, params)
+            execute_script_in_terminal(script_path, script_args)
         else:
-            execute_script_with_uv(script_path, params)
+            execute_script_with_uv(script_path, script_args)
         
     except GitHubIntegrationError as e:
         logger.error(f"GitHub integration error: {str(e)}")
