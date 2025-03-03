@@ -8,21 +8,19 @@ import os
 import sys
 import click
 # autopep8 import removed
-from typing import Optional, Dict, Any, Tuple
+from typing import Dict, Any
 
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, TextArea, Static
-from textual.containers import Container, Vertical, Horizontal
 from textual import events
 from textual.binding import Binding
 
 from script_magic.mapping_manager import get_mapping_manager
 from script_magic.github_integration import (
     download_script_from_gist, 
-    upload_script_to_gist, 
     GitHubIntegrationError
 )
-from script_magic.rich_output import console, display_heading
+from script_magic.rich_output import console
 from script_magic.logger import get_logger
 
 # Set up logger
