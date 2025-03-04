@@ -32,64 +32,73 @@ class ScriptResult(BaseModel):
     description: str
     tags: list[str] = ["generated", "script-magic"]
 
-# Set up the system prompts
-SCRIPT_SYSTEM_PROMPT = """
-You are a Python script generator. When given a prompt, you will:
-1. Generate a complete, working Python script
-2. Include clear inline comments
-3. Follow Python best practices and PEP 8
-4. Include PEP 723 compliant metadata as comments at the top of the file
-5. Keep the code focused and efficient
+# Set up the agent
+script_agent = Agent(
+    'openai:gpt-4o-mini',
+    result_type=ScriptResult,
+    system_prompt="""
+    You are a Python script generator. When given a prompt, you will:
+    1. Generate a complete, working Python script
+    2. Include clear inline comments
+    3. Follow Python best practices and PEP 8
+    4. Include PEP 723 compliant metadata as comments at the top of the file
+    5. Keep the code focused and efficient
+    
+    The metadata should follow this format (PEP 723):
+    ```python
+    # /// script
+    # description = "Brief description of what the script does"
+    # authors = ["Script-Magic AI Generator"]
+    # date = "YYYY-MM-DD"
+    # requires-python = ">=3.9"
+    # dependencies = [
+    #     # List any required packages here, for example:
+    #     # "requests>=2.25.1",
+    # ]
+    # tags = ["generated", "script-magic"]
+    # ///
+    
+    # Generated from the prompt: "<prompt text>"
+    ```
+    
+    IMPORTANT: For any parameters in double curly braces like {{parameter_name}}, create a script that 
+    accepts command line arguments. For example, if you see {{prefix}} in the prompt, the script should 
+    accept a command line parameter named "prefix".
 
-The metadata should follow this format (PEP 723):
-```python
-# /// script
-# description = "Brief description of what the script does"
-# authors = ["Script-Magic AI Generator"]
-# date = "YYYY-MM-DD"
-# requires-python = ">=3.9"
-# dependencies = [
-#     # List any required packages here, for example:
-#     # "requests>=2.25.1",
-# ]
-# tags = ["generated", "script-magic"]
-# ///
+    Use argparse or click to properly parse command line arguments in a user-friendly way.
+    Always implement proper error handling for missing or incorrect arguments.
+    
+    For each script, provide:
+    1. The complete Python code with PEP 723 metadata
+    2. A brief description of what the script does
+    3. Relevant tags for the script's functionality
+    """
+)
 
-# Generated from the prompt: "<prompt text>"
-```
-
-IMPORTANT: For any parameters in double curly braces like {{parameter_name}}, create a script that 
-accepts command line arguments. For example, if you see {{prefix}} in the prompt, the script should 
-accept a command line parameter named "prefix".
-
-Use argparse or click to properly parse command line arguments in a user-friendly way.
-Always implement proper error handling for missing or incorrect arguments.
-
-For each script, provide:
-1. The complete Python code with PEP 723 metadata
-2. A brief description of what the script does
-3. Relevant tags for the script's functionality
-"""
-
-EDIT_SYSTEM_PROMPT = """
-You are a Python script editor. When given an existing script and modification instructions, you will:
-1. Modify the script according to the instructions while preserving its structure
-2. Keep or improve the clarity of inline comments
-3. Follow Python best practices and PEP 8
-4. Preserve the existing PEP 723 metadata, only updating it if necessary
-5. Keep the code focused and efficient
-
-For each script edit, provide:
-1. The complete updated Python code with PEP 723 metadata
-2. A brief description of the modified script
-3. Updated tags for the script that are relevant to the script's functionality
-
-When editing:
-- Maintain the script's original purpose while implementing the requested changes
-- Preserve existing functionality unless explicitly asked to change it
-- Update the PEP 723 metadata date to the current date
-- Add an "edited" tag to the metadata if not already present
-"""
+# Set up the edit agent
+edit_agent = Agent(
+    'openai:gpt-4o-mini',
+    result_type=ScriptResult,
+    system_prompt="""
+    You are a Python script editor. When given an existing script and modification instructions, you will:
+    1. Modify the script according to the instructions while preserving its structure
+    2. Keep or improve the clarity of inline comments
+    3. Follow Python best practices and PEP 8
+    4. Preserve the existing PEP 723 metadata, only updating it if necessary
+    5. Keep the code focused and efficient
+    
+    For each script edit, provide:
+    1. The complete updated Python code with PEP 723 metadata
+    2. A brief description of the modified script
+    3. Updated tags for the script that are relevant to the script's functionality
+    
+    When editing:
+    - Maintain the script's original purpose while implementing the requested changes
+    - Preserve existing functionality unless explicitly asked to change it
+    - Update the PEP 723 metadata date to the current date
+    - Add an "edited" tag to the metadata if not already present
+    """
+)
 
 def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags: list[str] = None) -> str:
     """
@@ -173,26 +182,18 @@ def extract_metadata_tags(script: str) -> list:
     # If no tags were extracted, use defaults
     return tags if tags else default_tags
 
-def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> tuple[str, str, list[str]]:
     """
     Generate a Python script based on the provided prompt.
     
     Args:
         prompt: The prompt describing what the script should do
         user_vars: Optional variables to include in the script (not replacing in prompt)
-        model_name: The name of the model to use for script generation
         
     Returns:
         A tuple containing (code, description, tags)
     """
     try:
-        # Set up the agent with the specified model
-        script_agent = Agent(
-            model_name,
-            result_type=ScriptResult,
-            system_prompt=SCRIPT_SYSTEM_PROMPT
-        )
-        
         # Run the agent to generate the script
         result = script_agent.run_sync(prompt)
         
@@ -222,26 +223,18 @@ print("Error: Failed to generate script")
 """
         return error_code, "Error generating script", ["generated", "error"]
 
-def edit_script(script: str, instructions: str, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def edit_script(script: str, instructions: str) -> tuple[str, str, list[str]]:
     """
     Edit an existing Python script based on the provided instructions.
     
     Args:
         script: The original script to modify
         instructions: Instructions describing what changes to make
-        model_name: The name of the model to use for script editing
         
     Returns:
         A tuple containing (updated_code, description, tags)
     """
     try:
-        # Set up the agent with the specified model
-        edit_agent = Agent(
-            model_name,
-            result_type=ScriptResult,
-            system_prompt=EDIT_SYSTEM_PROMPT
-        )
-        
         # Construct a proper prompt that includes both the script and instructions
         prompt = f"""Below is an existing Python script that needs to be modified:
 
@@ -291,19 +284,18 @@ Return the complete modified script maintaining all necessary PEP 723 metadata.
 """
         return error_code, "Error editing script", ["edited", "error"]
 
-def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> tuple[str, str, list[str]]:
     """
     Generate a script with interactive refinement.
     
     Args:
         prompt: The initial prompt describing what the script should do
         user_vars: Optional variables to replace in the prompt
-        model_name: The name of the model to use for script generation
         
     Returns:
         A tuple containing (code, description, tags)
     """
-    current_script, description, tags = generate_script(prompt, user_vars, model_name)
+    current_script, description, tags = generate_script(prompt, user_vars)
     
     while True:
         display_heading("Generated Script", style="bold green")
@@ -316,9 +308,9 @@ def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = No
         
         refinement = input("\nPlease describe what changes you want: ")
         full_prompt = f"{prompt}\n\nRevision request: {refinement}"
-        current_script, description, tags = generate_script(full_prompt, user_vars, model_name)
+        current_script, description, tags = generate_script(full_prompt, user_vars)
 
-def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, interactive: bool = False, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, interactive: bool = False) -> tuple[str, str, list[str]]:
     """
     Process a prompt to generate a Python script.
     
@@ -326,15 +318,14 @@ def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, inte
         prompt: The prompt describing what the script should do
         user_vars: Optional variables to replace in the prompt
         interactive: Whether to enable interactive refinement
-        model_name: The name of the model to use for script generation
         
     Returns:
         A tuple containing (code, description, tags)
     """
     if interactive:
-        return interactive_refinement(prompt, user_vars, model_name)
+        return interactive_refinement(prompt, user_vars)
     else:
-        return generate_script(prompt, user_vars, model_name)
+        return generate_script(prompt, user_vars)
 
 def display_script(script: str, title: Optional[str] = "Generated Script"):
     """

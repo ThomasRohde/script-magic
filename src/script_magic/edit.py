@@ -133,8 +133,7 @@ class ScriptEditor(App):
     ]
     
     def __init__(self, script_name: str, script_content: str, gist_id: str, 
-                 description: str, mapping_manager: Any, script_info: Dict[str, Any],
-                 model_name: str = "openai:gpt-4o-mini"):
+                 description: str, mapping_manager: Any, script_info: Dict[str, Any]):
         """Initialize the editor with script content."""
         super().__init__()
         self.script_name = script_name
@@ -155,8 +154,6 @@ class ScriptEditor(App):
         self.ai_results = None
         # Track worker IDs that have shown notifications
         self._notified_workers = set()
-        # Store the model name
-        self.model_name = model_name
     
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -167,7 +164,7 @@ class ScriptEditor(App):
         yield Footer()
     
     def on_mount(self) -> None:
-        """Handle the mount event.""" 
+        """Handle the mount event."""
         try:
             editor = self.query_one("#editor", TextArea)
             editor.focus()
@@ -182,7 +179,7 @@ class ScriptEditor(App):
             self._initialized = False
     
     def on_key(self, event: events.Key) -> None:
-        """Handle keyboard events for enhanced Python editing.""" 
+        """Handle keyboard events for enhanced Python editing."""
         try:
             # Check if the app is fully initialized and editor exists
             if not hasattr(self, "_initialized") or not self._initialized:
@@ -239,7 +236,7 @@ class ScriptEditor(App):
             self.notify(f"Error saving script: {str(e)}", timeout=5, severity="error")
     
     def action_quit(self) -> None:
-        """Quit the application.""" 
+        """Quit the application."""
         editor = self.query_one("#editor", TextArea)
         if editor.text != self.original_content and not self.saved:
             if self._allow_quit:
@@ -253,7 +250,7 @@ class ScriptEditor(App):
             self.exit()
     
     def _reset_quit_flag(self) -> None:
-        """Reset the quit confirmation flag.""" 
+        """Reset the quit confirmation flag."""
         self._allow_quit = False
             
     def action_reload(self) -> None:
@@ -317,11 +314,10 @@ class ScriptEditor(App):
                     if worker.is_cancelled:
                         return None, None, None
                     
-                    # Use the AI to edit the script, passing the model name
+                    # Use the AI to edit the script
                     edited_script, updated_description, updated_tags = ai_edit_script(
                         current_script, 
-                        prompt,
-                        model_name=self.model_name
+                        prompt
                     )
                     return edited_script, updated_description, updated_tags
                 except Exception as e:
@@ -341,7 +337,7 @@ class ScriptEditor(App):
             self.notify(f"Error processing with AI: {str(e)}", timeout=5, severity="error")
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
-        """Handle worker state changes.""" 
+        """Handle worker state changes."""
         worker = event.worker
         worker_id = id(worker)
         
@@ -399,13 +395,12 @@ class ScriptEditor(App):
             if worker_id in self._notified_workers:
                 self._notified_workers.remove(worker_id)
 
-def edit_script(script_name: str, model_name: str = "openai:gpt-4o-mini") -> bool:
+def edit_script(script_name: str) -> bool:
     """
     Edit a Python script using Textual TUI.
     
     Args:
         script_name: Name of the script to edit
-        model_name: The model to use for AI edits (default: "openai:gpt-4o-mini")
         
     Returns:
         bool: True if successful, False otherwise
@@ -485,8 +480,7 @@ if __name__ == "__main__":
             gist_id=gist_id,
             description=description,
             mapping_manager=mapping_manager,
-            script_info=script_info,
-            model_name=model_name
+            script_info=script_info
         )
         
         console.print(f"[bold blue]Opening Python editor for '{script_name}'...[/bold blue]")
@@ -513,9 +507,7 @@ if __name__ == "__main__":
 
 @click.command()
 @click.argument('script_name')
-@click.option('--model', '-m', default="openai:gpt-4o-mini", 
-              help='AI model to use for script editing (default: openai:gpt-4o-mini)')
-def cli(script_name: str, model: str) -> None:
+def cli(script_name: str) -> None:
     """
     Edit an existing Python script in a text editor.
     
@@ -526,8 +518,8 @@ def cli(script_name: str, model: str) -> None:
         console.print("[bold red]Error:[/bold red] MY_GITHUB_PAT environment variable is not set")
         sys.exit(1)
     
-    # Run the edit command with the specified model
-    success = edit_script(script_name, model_name=model)
+    # Run the edit command
+    success = edit_script(script_name)
     if not success:
         sys.exit(1)
 
