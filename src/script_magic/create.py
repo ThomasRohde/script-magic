@@ -21,7 +21,7 @@ from script_magic.logger import get_logger
 # Set up logger
 logger = get_logger(__name__)
 
-def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
+def create_script(script_name: str, prompt: str, preview: bool = False, model_name: str = "openai:gpt-4o-mini") -> bool:
     """
     Create a new Python script from a prompt and store it in a GitHub Gist.
     
@@ -29,6 +29,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
         script_name: Name of the script
         prompt: Prompt describing what the script should do
         preview: Whether to preview the script before uploading
+        model_name: The model to use for script generation (default: "openai:gpt-4o-mini")
         
     Returns:
         bool: True if successful, False otherwise
@@ -40,9 +41,10 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
         if preview:
             display_heading(f"Creating script: {script_name}", style="bold blue")
             console.print(f"[italic]Using prompt:[/italic] {prompt}\n")
+            console.print(f"[dim]Using model:[/dim] {model_name}\n")
             
             # Interactive mode with preview
-            script_content, description, tags = interactive_refinement(prompt)
+            script_content, description, tags = interactive_refinement(prompt, model_name=model_name)
             display_heading("Final Script", style="bold green")
             display_script(script_content, title=script_name)
             
@@ -52,7 +54,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
                 return False
         else:
             # Non-interactive mode
-            script_content, description, tags = process_prompt(prompt, interactive=False)
+            script_content, description, tags = process_prompt(prompt, interactive=False, model_name=model_name)
         
         # Upload to GitHub Gist
         console.print("\n[bold blue]Uploading to GitHub Gist...[/bold blue]")
@@ -71,7 +73,8 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
             metadata={
                 "prompt": prompt,
                 "description": description[:100] + ("..." if len(description) > 100 else ""),
-                "tags": tags
+                "tags": tags,
+                "model": model_name  # Store the model used for generation
             }
         )
         
@@ -85,6 +88,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
         
         console.print(f"[bold green]✓ Script '{script_name}' created successfully![/bold green]")
         console.print(f"[dim]Gist ID: {gist_id}[/dim]")
+        console.print(f"[dim]Model: {model_name}[/dim]")
         return True
         
     except GitHubIntegrationError as e:
@@ -100,7 +104,9 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
 @click.argument('script_name')
 @click.argument('prompt')
 @click.option('--preview', '-p', is_flag=True, help='Preview the script before creating it')
-def cli(script_name: str, prompt: str, preview: bool) -> None:
+@click.option('--model', '-m', default="openai:gpt-4o-mini", 
+              help='AI model to use for script generation (default: openai:gpt-4o-mini)')
+def cli(script_name: str, prompt: str, preview: bool, model: str) -> None:
     """
     Create a new Python script from a prompt and store it in a GitHub Gist.
     
@@ -117,8 +123,8 @@ def cli(script_name: str, prompt: str, preview: bool) -> None:
         console.print("[bold red]Error:[/bold red] MY_GITHUB_PAT environment variable is not set")
         sys.exit(1)
     
-    # Run the create command
-    success = create_script(script_name, prompt, preview)
+    # Run the create command with the specified model
+    success = create_script(script_name, prompt, preview, model_name=model)
     if not success:
         sys.exit(1)
 
