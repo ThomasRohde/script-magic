@@ -7,6 +7,7 @@ This module allows users to edit scripts using a Textual TUI.
 import os
 import sys
 import click
+import time
 from typing import Dict, Any
 
 from textual.app import App, ComposeResult
@@ -418,6 +419,28 @@ def edit_script(script_name: str, model_name: str = "openai:gpt-4o-mini") -> boo
         bool: True if successful, False otherwise
     """
     logger.info(f"Opening Python script '{script_name}' for editing")
+    
+    # Reset terminal state for Windows
+    if sys.platform == 'win32':
+        try:
+            # Clear screen to reset terminal state
+            os.system('cls')
+            
+            # Force terminal to reset by printing and flushing
+            sys.stdout.write("\033c")
+            sys.stdout.flush()
+            
+            # A small delay to let terminal settle
+            time.sleep(0.1)
+            
+            # For PowerShell and Windows Terminal specifically
+            if "WT_SESSION" in os.environ or "PSMODULEPATH" in os.environ:
+                # Send a terminal reset sequence that works in PowerShell/Windows Terminal
+                sys.stdout.write("\033[!p\033[20h\033[?7h\033[?1;3;4;6l")
+                sys.stdout.flush()
+                time.sleep(0.1)
+        except Exception as e:
+            logger.debug(f"Terminal reset attempt error (non-critical): {e}")
     
     try:
         # Get the mapping manager and look up the script
