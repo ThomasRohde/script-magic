@@ -253,7 +253,7 @@ def execute_script_in_terminal(script_path: str, params: List[str]) -> None:
             full_cmd = [
                 'cmd.exe', 
                 '/k', 
-                'uv', 'run', script_path, 
+                'uv', 'run', '-q', script_path, 
                 *params
             ]
             # Use shell=False and pass arguments as a list to avoid string parsing
