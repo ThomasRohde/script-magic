@@ -58,7 +58,7 @@ def setup_mapping() -> Tuple[MappingManager, bool]:
                     # Use GitHub version
                     mapping_manager.gist_id = gist_id
                     mapping_manager._save_gist_id(gist_id)
-                    mapping_manager._sync_from_github()
+                    mapping_manager.pull_mapping()
                     logger.info("Using GitHub mapping version")
                 else:
                     # Use local version but save Gist ID for future syncs
@@ -83,7 +83,7 @@ def setup_mapping() -> Tuple[MappingManager, bool]:
                 
             if gist_id:
                 mapping_manager.gist_id = gist_id
-                success = mapping_manager._sync_from_github()
+                success = mapping_manager.pull_mapping()
                 if success:
                     logger.info(f"Successfully synced mapping from Gist {gist_id}")
                     github_integration_success = True
@@ -110,7 +110,7 @@ def setup_mapping() -> Tuple[MappingManager, bool]:
                 
                 mapping_manager.gist_id = gist_id
                 mapping_manager._save_gist_id(gist_id)
-                success = mapping_manager._sync_from_github()
+                success = mapping_manager.pull_mapping()
                 
                 if success:
                     logger.info(f"Successfully synced mapping from Gist {gist_id}")
