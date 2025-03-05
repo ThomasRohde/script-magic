@@ -24,8 +24,6 @@ from script_magic.github_integration import (
 )
 from script_magic.rich_output import console
 from script_magic.logger import get_logger
-from script_magic.pydantic_ai_integration import edit_script as ai_edit_script
-from script_magic.handle_terminal_input import terminal_setup
 
 # Set up logger
 logger = get_logger(__name__)
@@ -194,9 +192,18 @@ class ScriptEditor(App):
                 if not editor.has_focus:
                     return
                 
-                # Special handling for arrow keys to prevent escape sequence issues
+                # Explicitly handle arrow keys to prevent escape sequence issues
                 if event.key in ("up", "down", "left", "right"):
-                    # Let Textual handle these keys normally, don't insert text
+                    # Map Textual key events to editor actions
+                    if event.key == "up":
+                        editor.move_cursor_up()
+                    elif event.key == "down":
+                        editor.move_cursor_down()
+                    elif event.key == "left":
+                        editor.move_cursor_left()
+                    elif event.key == "right":
+                        editor.move_cursor_right()
+                    event.stop()  # Prevent further processing of the event
                     return
                 
                 # Add any editor-specific key handling logic here
@@ -490,9 +497,7 @@ if __name__ == "__main__":
         )
         
         console.print(f"[bold blue]Opening Python editor for '{script_name}'...[/bold blue]")
-        # Use terminal_setup context manager when running the app
-        with terminal_setup():
-            app.run()
+        app.run()
         
         # Check if the script was saved
         if getattr(app, "saved", False):
