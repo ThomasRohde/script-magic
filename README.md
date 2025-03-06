@@ -238,4 +238,3 @@ To install development dependencies:
 ```bash
 pip install -e '.[dev,syntax]'
 ```
-````

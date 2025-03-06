@@ -10,7 +10,6 @@ from typing import Optional, Dict, Tuple
 from datetime import datetime
 from script_magic.pep723 import update_script_with_corrected_metadata
 import instructor
-import litellm
 from litellm import completion
 from pydantic import BaseModel, Field
 
@@ -24,7 +23,9 @@ except ImportError:
     from script_magic.rich_output import display_code, display_heading
 
 # Default model to use if none specified
-DEFAULT_MODEL = "anthropic/claude-3-7-sonnet-20250219"
+# DEFAULT_MODEL = "anthropic/claude-3-7-sonnet-20250219"
+DEFAULT_MODEL = "openai/gpt-4o-mini"
+# DEFAULT_MODEL = "openai/gpt-4o"
 
 # Create a model for the script generation
 class ScriptResult(BaseModel):

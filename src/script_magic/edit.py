@@ -10,7 +10,7 @@ import click
 from typing import Dict, Any
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, TextArea, Static, Input
+from textual.widgets import Header, Footer, TextArea, Static, Input, ProgressBar
 from textual.containers import Container
 from textual import events
 from textual.binding import Binding
@@ -28,6 +28,65 @@ from script_magic.ai_integration import DEFAULT_MODEL
 
 # Set up logger
 logger = get_logger(__name__)
+
+class ProgressModal(ModalScreen):
+    """A modal screen showing progress for AI operations."""
+    
+    DEFAULT_CSS = """
+    ProgressModal {
+        align: center middle;
+    }
+    
+    #progress-container {
+        width: 60%;
+        height: auto;
+        background: $surface;
+        padding: 1 2;
+        border: solid $primary;
+    }
+    
+    #progress-title {
+        width: 100%;
+        content-align: center middle;
+        text-align: center;
+    }
+    
+    #progress-message {
+        width: 100%;
+        text-align: center;
+        margin: 1 0;
+    }
+    
+    #progress-bar {
+        width: 100%;
+        margin: 1 0;
+    }
+    """
+    
+    def __init__(self, title="Processing with AI"):
+        super().__init__()
+        self.title = title
+        self.message = "Please wait while the AI processes your request..."
+    
+    def compose(self) -> ComposeResult:
+        """Compose the progress modal."""
+        with Container(id="progress-container"):
+            yield Static(self.title, id="progress-title")
+            yield Static(self.message, id="progress-message")
+            yield ProgressBar(id="progress-bar", show_eta=False, show_percentage=False)
+    
+    def update_message(self, message: str) -> None:
+        """Update the progress message."""
+        message_widget = self.query_one("#progress-message", Static)
+        message_widget.update(message)
+    
+    def pulse(self) -> None:
+        """Make the progress bar pulse to show activity."""
+        progress_bar = self.query_one("#progress-bar", ProgressBar)
+        if progress_bar.total is None:
+            # For indeterminate progress, make it pulse by toggling between 0 and a small value
+            current = progress_bar.progress or 0
+            progress_bar.update(progress=0 if current > 0 else 0.01)
 
 class PromptModal(ModalScreen):
     """A modal screen for entering a prompt."""
@@ -301,9 +360,24 @@ class ScriptEditor(App):
             editor = self.query_one("#editor", TextArea)
             current_script = editor.text
             
-            # Update status bar with processing message
-            status_bar = self.query_one("#status-bar", Static)
-            status_bar.update(f"AI processing with {self.model}... | {self.script_name}")
+            # Create and show progress modal
+            progress_modal = ProgressModal(f"Processing with {self.model}")
+            self.push_screen(progress_modal)
+            
+            # Set up a timer to pulse the progress bar every 0.5 seconds to show activity
+            def pulse_progress():
+                try:
+                    # Check if progress modal is still active
+                    if not self.is_screen_active(ProgressModal):
+                        return False  # Stop the timer
+                    progress_modal.pulse()
+                    return True  # Continue the timer
+                except Exception as e:
+                    logger.debug(f"Error pulsing progress bar: {e}")
+                    return False  # Stop the timer on error
+            
+            # Start the pulse timer
+            self.set_interval(0.5, pulse_progress)
             
             # Create a worker to process the AI edit
             def ai_worker():
@@ -328,13 +402,14 @@ class ScriptEditor(App):
             
             # Create and run the worker (use thread=True since AI processing is CPU-intensive)
             worker = self.run_worker(ai_worker, thread=True)
-            self.notify(f"Processing your prompt using {self.model}...", timeout=3)
             
         except Exception as e:
-            # Reset status bar on error
-            status_bar = self.query_one("#status-bar", Static)
-            status_bar.update(f"File: {self.script_name} | Python Editor")
-            
+            # Clean up and reset on error
+            try:
+                self.dismiss_progress_modal()
+            except Exception:
+                pass
+                
             logger.error(f"Failed to process prompt with AI: {str(e)}", exc_info=True)
             self.notify(f"Error processing with AI: {str(e)}", timeout=5, severity="error")
 
@@ -343,36 +418,74 @@ class ScriptEditor(App):
         worker = event.worker
         worker_id = id(worker)
         
+        # Get the worker name to identify which process is running
+        worker_name = getattr(worker, 'name', '')
+        
+        # Handle specific workers differently
+        if worker_name == '_show_prompt_modal':
+            # This is the prompt modal worker, no need to modify UI elements
+            return
+            
         if worker.state == WorkerState.RUNNING:
             # Only show notification if we haven't already notified for this worker
             if worker_id not in self._notified_workers:
-                self.notify("AI is generating code based on your prompt...", timeout=3)
+                # Update the progress modal if it exists
+                try:
+                    progress_modal = self.get_screen(ProgressModal)
+                    progress_modal.update_message("AI is generating code based on your prompt...")
+                except Exception as e:
+                    logger.debug(f"Could not update progress modal: {e}")
+                
                 self._notified_workers.add(worker_id)
         
         elif worker.state == WorkerState.SUCCESS:
-            # Update status bar back to normal
-            status_bar = self.query_one("#status-bar", Static)
-            status_bar.update(f"File: {self.script_name} | Python Editor")
-            
             # Worker completed successfully
+            
+            # Only update status bar if we have one (not during modal operations)
+            try:
+                status_bar = self.query_one("#status-bar", Static)
+                status_bar.update(f"File: {self.script_name} | Python Editor")
+            except Exception as e:
+                logger.debug(f"Status bar not available: {e}")
+            
             result = worker.result
             if result:
                 edited_script, updated_description, updated_tags = result
                 
                 if edited_script:
-                    # Update the editor with the edited script
-                    editor = self.query_one("#editor", TextArea)
-                    editor.text = edited_script
-                    
-                    # Store the updated description and tags for later use
+                    # Store the generated script and metadata in instance variables
+                    # so they can be accessed after dismissing the modal
+                    self.ai_generated_script = edited_script
                     self.updated_description = updated_description
                     self.updated_tags = updated_tags
                     
                     # Make sure we know the content has changed
                     self.saved = False
                     
-                    self.notify("✓ Script updated with AI-generated changes!", timeout=3)
+                    # Set progress to 100% complete to show success
+                    try:
+                        progress_modal = self.get_screen(ProgressModal)
+                        progress_bar = progress_modal.query_one("#progress-bar", ProgressBar)
+                        progress_bar.update(total=1.0, progress=1.0)  # Set to 100% complete
+                        progress_modal.update_message("✓ Changes generated successfully!")
+                        # Pause briefly so the user can see the completion message
+                        self.set_timer(1.5, self._update_editor_after_modal)
+                    except Exception as e:
+                        logger.debug(f"Could not update progress modal: {e}")
+                        self._update_editor_after_modal()
+                        
                 else:
+                    # Dismiss the progress modal with a message
+                    try:
+                        progress_modal = self.get_screen(ProgressModal)
+                        progress_bar = progress_modal.query_one("#progress-bar", ProgressBar)
+                        progress_bar.update(total=1.0, progress=1.0)  # Set to 100% complete
+                        progress_modal.update_message("AI did not suggest any changes")
+                        self.set_timer(1.5, self.dismiss_progress_modal)
+                    except Exception as e:
+                        logger.debug(f"Could not update progress modal: {e}")
+                        self.dismiss_progress_modal()
+                    
                     self.notify("AI did not suggest any changes to your script", timeout=3)
                 
             # Clean up the worker tracking
@@ -380,9 +493,29 @@ class ScriptEditor(App):
                 self._notified_workers.remove(worker_id)
                 
         elif worker.state in (WorkerState.ERROR, WorkerState.CANCELLED):
-            # Update status bar back to normal
-            status_bar = self.query_one("#status-bar", Static)
-            status_bar.update(f"File: {self.script_name} | Python Editor")
+            # Only update status bar if we have one (not during modal operations)
+            try:
+                status_bar = self.query_one("#status-bar", Static)
+                status_bar.update(f"File: {self.script_name} | Python Editor")
+            except Exception as e:
+                logger.debug(f"Status bar not available: {e}")
+            
+            # Update progress modal with error message and show as failed
+            try:
+                progress_modal = self.get_screen(ProgressModal)
+                progress_bar = progress_modal.query_one("#progress-bar", ProgressBar)
+                # Set progress to 0 but with a total to show no progress was made
+                progress_bar.update(total=1.0, progress=0)
+                
+                if worker.state == WorkerState.ERROR:
+                    error_msg = str(worker.error) if worker.error else "Unknown error"
+                    progress_modal.update_message(f"Error: {error_msg}")
+                else:
+                    progress_modal.update_message("Operation was cancelled")
+                self.set_timer(2, self.dismiss_progress_modal)
+            except Exception as e:
+                logger.debug(f"Could not update progress modal: {e}")
+                self.dismiss_progress_modal()
             
             if worker.state == WorkerState.ERROR:
                 # Worker encountered an error
@@ -396,6 +529,45 @@ class ScriptEditor(App):
             # Clean up the worker tracking
             if worker_id in self._notified_workers:
                 self._notified_workers.remove(worker_id)
+    
+    def _update_editor_after_modal(self) -> None:
+        """Update the editor with AI-generated content after dismissing the modal."""
+        # First dismiss the progress modal
+        self.dismiss_progress_modal()
+        
+        # Now that we're back to the main screen, try to update the editor
+        try:
+            # Check if we have AI-generated content to apply
+            if hasattr(self, "ai_generated_script") and self.ai_generated_script:
+                # Verify the editor exists before updating
+                if self.query("TextArea#editor"):
+                    editor = self.query_one("#editor", TextArea)
+                    editor.text = self.ai_generated_script
+                    
+                    # Notify the user of successful update
+                    self.notify("✓ Script updated with AI-generated changes!", timeout=3)
+                else:
+                    logger.warning("Editor not available when trying to update with AI changes")
+                    self.notify("⚠️ Could not update editor - please try again", timeout=3, severity="warning")
+        except Exception as e:
+            logger.error(f"Error updating editor after modal: {str(e)}", exc_info=True)
+            self.notify(f"Error updating editor: {str(e)}", timeout=3, severity="error")
+
+    def is_screen_active(self, screen_class) -> bool:
+        """Check if a screen of the given class is currently active."""
+        try:
+            self.get_screen(screen_class)
+            return True
+        except Exception:
+            return False
+            
+    def dismiss_progress_modal(self) -> None:
+        """Helper method to dismiss the progress modal."""
+        try:
+            progress_modal = self.get_screen(ProgressModal)
+            self.pop_screen()
+        except Exception as e:
+            logger.debug(f"Could not dismiss progress modal: {e}")
 
 def edit_script(script_name: str, model: str = DEFAULT_MODEL) -> bool:
     """
