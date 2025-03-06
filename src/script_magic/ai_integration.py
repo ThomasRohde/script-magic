@@ -1,16 +1,17 @@
 """
-PydanticAI integration for script generation.
+Instructor integration for script generation.
 
-This module provides functions to generate Python scripts using PydanticAI,
+This module provides functions to generate Python scripts using Instructor and LiteLLM,
 with support for interactive refinement and PEP 723 metadata inclusion.
 """
 import os
 import re
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 from datetime import datetime
 from script_magic.pep723 import update_script_with_corrected_metadata
-from pydantic_ai import Agent
-from pydantic import BaseModel
+import instructor
+from litellm import completion
+from pydantic import BaseModel, Field
 
 try:
     from script_magic.rich_output import display_code, display_heading
@@ -21,84 +22,81 @@ except ImportError:
     sys.path.append(str(pathlib.Path(__file__).parent.parent))
     from script_magic.rich_output import display_code, display_heading
 
-# Check for required environment variables
-if not os.getenv("OPENAI_API_KEY"):
-    print("Warning: OPENAI_API_KEY environment variable not set. Some features may not work correctly.")
-
 # Create a model for the script generation
 class ScriptResult(BaseModel):
     """Model for script generation results."""
-    code: str
-    description: str
-    tags: list[str] = ["generated", "script-magic"]
+    code: str = Field(
+        description="The complete Python code of the generated script, including PEP 723 metadata"
+    )
+    description: str = Field(
+        description="A brief description of what the script does"
+    )
+    tags: list[str] = Field(
+        default=["generated", "script-magic"],
+        description="Tags categorizing the script's functionality and origin"
+    )
 
-# Set up the agent
-script_agent = Agent(
-    'openai:gpt-4o-mini',
-    result_type=ScriptResult,
-    system_prompt="""
-    You are a Python script generator. When given a prompt, you will:
-    1. Generate a complete, working Python script
-    2. Include clear inline comments
-    3. Follow Python best practices and PEP 8
-    4. Include PEP 723 compliant metadata as comments at the top of the file
-    5. Keep the code focused and efficient
-    
-    The metadata should follow this format (PEP 723):
-    ```python
-    # /// script
-    # description = "Brief description of what the script does"
-    # authors = ["Script-Magic AI Generator"]
-    # date = "YYYY-MM-DD"
-    # requires-python = ">=3.9"
-    # dependencies = [
-    #     # List any required packages here, for example:
-    #     # "requests>=2.25.1",
-    # ]
-    # tags = ["generated", "script-magic"]
-    # ///
-    
-    # Generated from the prompt: "<prompt text>"
-    ```
-    
-    IMPORTANT: For any parameters in double curly braces like {{parameter_name}}, create a script that 
-    accepts command line arguments. For example, if you see {{prefix}} in the prompt, the script should 
-    accept a command line parameter named "prefix".
+# Set up the Instructor client with LiteLLM
+client = instructor.from_litellm(completion)
 
-    Use argparse or click to properly parse command line arguments in a user-friendly way.
-    Always implement proper error handling for missing or incorrect arguments.
-    
-    For each script, provide:
-    1. The complete Python code with PEP 723 metadata
-    2. A brief description of what the script does
-    3. Relevant tags for the script's functionality
-    """
-)
+# System prompts for generation and editing
+SCRIPT_GENERATION_PROMPT = """
+You are a Python script generator. When given a prompt, you will:
+1. Generate a complete, working Python script
+2. Include clear inline comments
+3. Follow Python best practices and PEP 8
+4. Include PEP 723 compliant metadata as comments at the top of the file
+5. Keep the code focused and efficient
 
-# Set up the edit agent
-edit_agent = Agent(
-    'openai:gpt-4o-mini',
-    result_type=ScriptResult,
-    system_prompt="""
-    You are a Python script editor. When given an existing script and modification instructions, you will:
-    1. Modify the script according to the instructions while preserving its structure
-    2. Keep or improve the clarity of inline comments
-    3. Follow Python best practices and PEP 8
-    4. Preserve the existing PEP 723 metadata, only updating it if necessary
-    5. Keep the code focused and efficient
-    
-    For each script edit, provide:
-    1. The complete updated Python code with PEP 723 metadata
-    2. A brief description of the modified script
-    3. Updated tags for the script that are relevant to the script's functionality
-    
-    When editing:
-    - Maintain the script's original purpose while implementing the requested changes
-    - Preserve existing functionality unless explicitly asked to change it
-    - Update the PEP 723 metadata date to the current date
-    - Add an "edited" tag to the metadata if not already present
-    """
-)
+The metadata should follow this format (PEP 723):
+```python
+# /// script
+# description = "Brief description of what the script does"
+# authors = ["Script-Magic AI Generator"]
+# date = "YYYY-MM-DD"
+# requires-python = ">=3.9"
+# dependencies = [
+#     # List any required packages here, for example:
+#     # "requests>=2.25.1",
+# ]
+# tags = ["generated", "script-magic"]
+# ///
+
+# Generated from the prompt: "<prompt text>"
+```
+
+IMPORTANT: For any parameters in double curly braces like {{parameter_name}}, create a script that 
+accepts command line arguments. For example, if you see {{prefix}} in the prompt, the script should 
+accept a command line parameter named "prefix".
+
+Use argparse or click to properly parse command line arguments in a user-friendly way.
+Always implement proper error handling for missing or incorrect arguments.
+
+For each script, provide:
+1. The complete Python code with PEP 723 metadata
+2. A brief description of what the script does
+3. Relevant tags for the script's functionality
+"""
+
+SCRIPT_EDIT_PROMPT = """
+You are a Python script editor. When given an existing script and modification instructions, you will:
+1. Modify the script according to the instructions while preserving its structure
+2. Keep or improve the clarity of inline comments
+3. Follow Python best practices and PEP 8
+4. Preserve the existing PEP 723 metadata, only updating it if necessary
+5. Keep the code focused and efficient
+
+For each script edit, provide:
+1. The complete updated Python code with PEP 723 metadata
+2. A brief description of the modified script
+3. Updated tags for the script that are relevant to the script's functionality
+
+When editing:
+- Maintain the script's original purpose while implementing the requested changes
+- Preserve existing functionality unless explicitly asked to change it
+- Update the PEP 723 metadata date to the current date
+- Add an "edited" tag to the metadata if not already present
+"""
 
 def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags: list[str] = None) -> str:
     """
@@ -139,7 +137,6 @@ def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags:
 # ///
 
 # Generated from the prompt: "{prompt.strip()}"
-
 """
     # Add metadata to the top of the script
     return metadata + code
@@ -194,13 +191,20 @@ def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None) -> 
         A tuple containing (code, description, tags)
     """
     try:
-        # Run the agent to generate the script
-        result = script_agent.run_sync(prompt)
+        # Use Instructor with LiteLLM to generate the script
+        result = client.chat.completions.create(
+            model="gpt-4o-mini",  # You can adjust the model as needed
+            messages=[
+                {"role": "system", "content": SCRIPT_GENERATION_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            response_model=ScriptResult
+        )
         
         # Extract the generated code and ensure metadata is included
-        code = result.data.code
-        description = result.data.description
-        tags = result.data.tags
+        code = result.code
+        description = result.description
+        tags = result.tags
         
         # Ensure code has metadata
         code = add_metadata_if_missing(code, prompt, description, tags)
@@ -247,13 +251,20 @@ Please modify the script according to these instructions:
 
 Return the complete modified script maintaining all necessary PEP 723 metadata.
 """
-        # Run the agent to edit the script
-        result = edit_agent.run_sync(prompt)
+        # Use Instructor with LiteLLM to edit the script
+        result = client.chat.completions.create(
+            model="gpt-4o-mini",  # You can adjust the model as needed
+            messages=[
+                {"role": "system", "content": SCRIPT_EDIT_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            response_model=ScriptResult
+        )
         
         # Extract the edited code and metadata
-        edited_code = result.data.code
-        description = result.data.description
-        tags = result.data.tags
+        edited_code = result.code
+        description = result.description
+        tags = result.tags
         
         # Ensure code has metadata and update the date
         if "edited" not in tags:

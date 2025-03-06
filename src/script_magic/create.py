@@ -10,7 +10,7 @@ import sys
 import click
 
 # Import integration modules
-from script_magic.pydantic_ai_integration import (
+from script_magic.ai_integration import (
     process_prompt, display_script, interactive_refinement
 )
 from script_magic.github_integration import upload_script_to_gist, GitHubIntegrationError
