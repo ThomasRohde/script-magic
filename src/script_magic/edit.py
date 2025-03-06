@@ -24,6 +24,7 @@ from script_magic.github_integration import (
 )
 from script_magic.rich_output import console
 from script_magic.logger import get_logger
+from script_magic.ai_integration import DEFAULT_MODEL
 
 # Set up logger
 logger = get_logger(__name__)
@@ -131,7 +132,8 @@ class ScriptEditor(App):
     ]
     
     def __init__(self, script_name: str, script_content: str, gist_id: str, 
-                 description: str, mapping_manager: Any, script_info: Dict[str, Any]):
+                 description: str, mapping_manager: Any, script_info: Dict[str, Any], 
+                 model: str = DEFAULT_MODEL):
         """Initialize the editor with script content."""
         super().__init__()
         self.script_name = script_name
@@ -143,6 +145,7 @@ class ScriptEditor(App):
         self._allow_quit = False
         self.mapping_manager = mapping_manager
         self.script_info = script_info
+        self.model = model  # Store the model to use
         # Store metadata for later use
         self.metadata = script_info.get("metadata", {})
         # Store updated description and tags
@@ -300,7 +303,7 @@ class ScriptEditor(App):
             
             # Update status bar with processing message
             status_bar = self.query_one("#status-bar", Static)
-            status_bar.update(f"AI processing... | {self.script_name}")
+            status_bar.update(f"AI processing with {self.model}... | {self.script_name}")
             
             # Create a worker to process the AI edit
             def ai_worker():
@@ -312,10 +315,11 @@ class ScriptEditor(App):
                     if worker.is_cancelled:
                         return None, None, None
                     
-                    # Use the AI to edit the script
+                    # Use the AI to edit the script with the specified model
                     edited_script, updated_description, updated_tags = ai_edit_script(
                         current_script, 
-                        prompt
+                        prompt,
+                        model=self.model
                     )
                     return edited_script, updated_description, updated_tags
                 except Exception as e:
@@ -324,7 +328,7 @@ class ScriptEditor(App):
             
             # Create and run the worker (use thread=True since AI processing is CPU-intensive)
             worker = self.run_worker(ai_worker, thread=True)
-            self.notify("Preparing to process your prompt...", timeout=3)
+            self.notify(f"Processing your prompt using {self.model}...", timeout=3)
             
         except Exception as e:
             # Reset status bar on error
@@ -393,17 +397,18 @@ class ScriptEditor(App):
             if worker_id in self._notified_workers:
                 self._notified_workers.remove(worker_id)
 
-def edit_script(script_name: str) -> bool:
+def edit_script(script_name: str, model: str = DEFAULT_MODEL) -> bool:
     """
     Edit a Python script using Textual TUI.
     
     Args:
         script_name: Name of the script to edit
+        model: The model to use for AI editing
         
     Returns:
         bool: True if successful, False otherwise
     """
-    logger.info(f"Opening Python script '{script_name}' for editing")
+    logger.info(f"Opening Python script '{script_name}' for editing using model: {model}")
     
     try:
         # Get the mapping manager and look up the script
@@ -478,10 +483,11 @@ if __name__ == "__main__":
             gist_id=gist_id,
             description=description,
             mapping_manager=mapping_manager,
-            script_info=script_info
+            script_info=script_info,
+            model=model  # Pass the model to the editor
         )
         
-        console.print(f"[bold blue]Opening Python editor for '{script_name}'...[/bold blue]")
+        console.print(f"[bold blue]Opening Python editor for '{script_name}' using model '{model}'...[/bold blue]")
 
         app.run()
         
@@ -504,7 +510,8 @@ if __name__ == "__main__":
 
 @click.command()
 @click.argument('script_name')
-def cli(script_name: str) -> None:
+@click.option('--model', '-m', default=DEFAULT_MODEL, help=f'Model to use for AI assistance (default: {DEFAULT_MODEL})')
+def cli(script_name: str, model: str) -> None:
     """
     Edit an existing Python script in a text editor.
     
@@ -516,7 +523,7 @@ def cli(script_name: str) -> None:
         sys.exit(1)
     
     # Run the edit command
-    success = edit_script(script_name)
+    success = edit_script(script_name, model)
     if not success:
         sys.exit(1)
 

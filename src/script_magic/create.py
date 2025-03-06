@@ -11,7 +11,7 @@ import click
 
 # Import integration modules
 from script_magic.ai_integration import (
-    process_prompt, display_script, interactive_refinement
+    process_prompt, display_script, interactive_refinement, DEFAULT_MODEL
 )
 from script_magic.github_integration import upload_script_to_gist, GitHubIntegrationError
 from script_magic.mapping_manager import get_mapping_manager
@@ -21,7 +21,7 @@ from script_magic.logger import get_logger
 # Set up logger
 logger = get_logger(__name__)
 
-def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
+def create_script(script_name: str, prompt: str, preview: bool = False, model: str = DEFAULT_MODEL) -> bool:
     """
     Create a new Python script from a prompt and store it in a GitHub Gist.
     
@@ -29,20 +29,22 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
         script_name: Name of the script
         prompt: Prompt describing what the script should do
         preview: Whether to preview the script before uploading
+        model: The model to use for generation
         
     Returns:
         bool: True if successful, False otherwise
     """
-    logger.info(f"Creating script '{script_name}' with prompt: {prompt}")
+    logger.info(f"Creating script '{script_name}' with prompt: {prompt} using model: {model}")
     
     try:
         # Process the prompt to generate a script
         if preview:
             display_heading(f"Creating script: {script_name}", style="bold blue")
             console.print(f"[italic]Using prompt:[/italic] {prompt}\n")
+            console.print(f"[italic]Using model:[/italic] {model}\n")
             
             # Interactive mode with preview
-            script_content, description, tags = interactive_refinement(prompt)
+            script_content, description, tags = interactive_refinement(prompt, model=model)
             display_heading("Final Script", style="bold green")
             display_script(script_content, title=script_name)
             
@@ -52,7 +54,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
                 return False
         else:
             # Non-interactive mode
-            script_content, description, tags = process_prompt(prompt, interactive=False)
+            script_content, description, tags = process_prompt(prompt, interactive=False, model=model)
         
         # Upload to GitHub Gist
         console.print("\n[bold blue]Uploading to GitHub Gist...[/bold blue]")
@@ -71,7 +73,8 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
             metadata={
                 "prompt": prompt,
                 "description": description[:100] + ("..." if len(description) > 100 else ""),
-                "tags": tags
+                "tags": tags,
+                "model": model  # Add the model to the metadata
             }
         )
         
@@ -100,7 +103,8 @@ def create_script(script_name: str, prompt: str, preview: bool = False) -> bool:
 @click.argument('script_name')
 @click.argument('prompt')
 @click.option('--preview', '-p', is_flag=True, help='Preview the script before creating it')
-def cli(script_name: str, prompt: str, preview: bool) -> None:
+@click.option('--model', '-m', default=DEFAULT_MODEL, help=f'Model to use for generation (default: {DEFAULT_MODEL})')
+def cli(script_name: str, prompt: str, preview: bool, model: str) -> None:
     """
     Create a new Python script from a prompt and store it in a GitHub Gist.
     
@@ -118,7 +122,7 @@ def cli(script_name: str, prompt: str, preview: bool) -> None:
         sys.exit(1)
     
     # Run the create command
-    success = create_script(script_name, prompt, preview)
+    success = create_script(script_name, prompt, preview, model)
     if not success:
         sys.exit(1)
 
