@@ -24,8 +24,6 @@ from script_magic.github_integration import (
 )
 from script_magic.rich_output import console
 from script_magic.logger import get_logger
-from script_magic.ai_integration import edit_script as ai_edit_script
-from script_magic.handle_terminal_input import terminal_setup
 
 # Set up logger
 logger = get_logger(__name__)
@@ -484,9 +482,8 @@ if __name__ == "__main__":
         )
         
         console.print(f"[bold blue]Opening Python editor for '{script_name}'...[/bold blue]")
-        # Use terminal_setup context manager when running the app
-        with terminal_setup():
-            app.run()
+
+        app.run()
         
         # Check if the script was saved
         if getattr(app, "saved", False):

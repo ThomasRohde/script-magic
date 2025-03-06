@@ -254,8 +254,7 @@ def execute_script_in_terminal(script_path: str, params: List[str]) -> None:
                 'cmd.exe', 
                 '/k', 
                 'uv', 'run', script_path, 
-                *params,  # Unpack the parameters directly
-                '&', 'echo.', '&', 'echo', 'Press any key to close...', '&', 'pause', '>', 'nul'
+                *params
             ]
             # Use shell=False and pass arguments as a list to avoid string parsing
             subprocess.Popen(['start'] + full_cmd, shell=True, close_fds=True)
