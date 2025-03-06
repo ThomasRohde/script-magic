@@ -38,7 +38,7 @@ class ProgressModal(ModalScreen):
     }
     
     #progress-container {
-        width: 60%;
+        width: 80%; 
         height: auto;
         background: $surface;
         padding: 1 2;

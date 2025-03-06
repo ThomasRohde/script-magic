@@ -23,8 +23,8 @@ except ImportError:
     from script_magic.rich_output import display_code, display_heading
 
 # Default model to use if none specified
-# DEFAULT_MODEL = "anthropic/claude-3-7-sonnet-20250219"
-DEFAULT_MODEL = "openai/gpt-4o-mini"
+DEFAULT_MODEL = "anthropic/claude-3-7-sonnet-20250219"
+# DEFAULT_MODEL = "openai/gpt-4o-mini"
 # DEFAULT_MODEL = "openai/gpt-4o"
 
 # Create a model for the script generation
