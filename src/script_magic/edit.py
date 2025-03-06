@@ -320,7 +320,7 @@ class ScriptEditor(App):
                 try:
                     worker = get_current_worker()
                     # Import inside the function to avoid circular imports
-                    from script_magic.pydantic_ai_integration import edit_script as ai_edit_script
+                    from script_magic.ai_integration import edit_script as ai_edit_script
                     
                     if worker.is_cancelled:
                         return None, None, None

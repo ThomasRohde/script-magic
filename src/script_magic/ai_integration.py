@@ -1,16 +1,17 @@
 """
-PydanticAI integration for script generation.
+Instructor integration for script generation.
 
-This module provides functions to generate Python scripts using PydanticAI,
+This module provides functions to generate Python scripts using Instructor with LiteLLM,
 with support for interactive refinement and PEP 723 metadata inclusion.
 """
 import os
 import re
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List
 from datetime import datetime
 from script_magic.pep723 import update_script_with_corrected_metadata
-from pydantic_ai import Agent
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+import instructor
+from litellm import completion
 
 try:
     from script_magic.rich_output import display_code, display_heading
@@ -25,12 +26,22 @@ except ImportError:
 if not os.getenv("OPENAI_API_KEY"):
     print("Warning: OPENAI_API_KEY environment variable not set. Some features may not work correctly.")
 
+# Initialize Instructor with LiteLLM
+client = instructor.from_litellm(completion)
+
 # Create a model for the script generation
 class ScriptResult(BaseModel):
     """Model for script generation results."""
-    code: str
-    description: str
-    tags: list[str] = ["generated", "script-magic"]
+    code: str = Field(
+        description="The complete Python script with proper metadata, comments, and implementation"
+    )
+    description: str = Field(
+        description="A brief description of what the script does and its purpose"
+    )
+    tags: List[str] = Field(
+        default=["generated", "script-magic"],
+        description="Tags categorizing the script's functionality and characteristics"
+    )
 
 # Set up the system prompts
 SCRIPT_SYSTEM_PROMPT = """
@@ -91,7 +102,7 @@ When editing:
 - Add an "edited" tag to the metadata if not already present
 """
 
-def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags: list[str] = None) -> str:
+def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags: List[str] = None) -> str:
     """
     Ensures the script has PEP 723 compliant metadata.
     If metadata is missing, adds it to the top of the script.
@@ -135,7 +146,7 @@ def add_metadata_if_missing(code: str, prompt: str, description: str = "", tags:
     # Add metadata to the top of the script
     return metadata + code
 
-def extract_metadata_tags(script: str) -> list:
+def extract_metadata_tags(script: str) -> List[str]:
     """
     Extract tags from the PEP 723 metadata in the script.
     
@@ -173,7 +184,7 @@ def extract_metadata_tags(script: str) -> list:
     # If no tags were extracted, use defaults
     return tags if tags else default_tags
 
-def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None, model_name: str = 'gpt-4o-mini') -> Tuple[str, str, List[str]]:
     """
     Generate a Python script based on the provided prompt.
     
@@ -186,20 +197,21 @@ def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None, mod
         A tuple containing (code, description, tags)
     """
     try:
-        # Set up the agent with the specified model
-        script_agent = Agent(
-            model_name,
-            result_type=ScriptResult,
-            system_prompt=SCRIPT_SYSTEM_PROMPT
+        print(f"Generating script for prompt: {prompt} with model: {model_name}")
+        # Run the LLM to generate the script using Instructor
+        result = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": SCRIPT_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            response_model=ScriptResult
         )
         
-        # Run the agent to generate the script
-        result = script_agent.run_sync(prompt)
-        
         # Extract the generated code and ensure metadata is included
-        code = result.data.code
-        description = result.data.description
-        tags = result.data.tags
+        code = result.code
+        description = result.description
+        tags = result.tags
         
         # Ensure code has metadata
         code = add_metadata_if_missing(code, prompt, description, tags)
@@ -222,7 +234,7 @@ print("Error: Failed to generate script")
 """
         return error_code, "Error generating script", ["generated", "error"]
 
-def edit_script(script: str, instructions: str, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def edit_script(script: str, instructions: str, model_name: str = 'gpt-4o-mini') -> Tuple[str, str, List[str]]:
     """
     Edit an existing Python script based on the provided instructions.
     
@@ -235,13 +247,6 @@ def edit_script(script: str, instructions: str, model_name: str = 'openai:gpt-4o
         A tuple containing (updated_code, description, tags)
     """
     try:
-        # Set up the agent with the specified model
-        edit_agent = Agent(
-            model_name,
-            result_type=ScriptResult,
-            system_prompt=EDIT_SYSTEM_PROMPT
-        )
-        
         # Construct a proper prompt that includes both the script and instructions
         prompt = f"""Below is an existing Python script that needs to be modified:
 
@@ -254,13 +259,21 @@ Please modify the script according to these instructions:
 
 Return the complete modified script maintaining all necessary PEP 723 metadata.
 """
-        # Run the agent to edit the script
-        result = edit_agent.run_sync(prompt)
+        
+        # Run the LLM to edit the script
+        result = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": EDIT_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            response_model=ScriptResult
+        )
         
         # Extract the edited code and metadata
-        edited_code = result.data.code
-        description = result.data.description
-        tags = result.data.tags
+        edited_code = result.code
+        description = result.description
+        tags = result.tags
         
         # Ensure code has metadata and update the date
         if "edited" not in tags:
@@ -291,7 +304,7 @@ Return the complete modified script maintaining all necessary PEP 723 metadata.
 """
         return error_code, "Error editing script", ["edited", "error"]
 
-def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None, model_name: str = 'gpt-4o-mini') -> Tuple[str, str, List[str]]:
     """
     Generate a script with interactive refinement.
     
@@ -318,7 +331,7 @@ def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = No
         full_prompt = f"{prompt}\n\nRevision request: {refinement}"
         current_script, description, tags = generate_script(full_prompt, user_vars, model_name)
 
-def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, interactive: bool = False, model_name: str = 'openai:gpt-4o-mini') -> tuple[str, str, list[str]]:
+def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, interactive: bool = False, model_name: str = 'gpt-4o-mini') -> Tuple[str, str, List[str]]:
     """
     Process a prompt to generate a Python script.
     

@@ -10,7 +10,7 @@ import sys
 import click
 
 # Import integration modules
-from script_magic.pydantic_ai_integration import (
+from script_magic.ai_integration import (
     process_prompt, display_script, interactive_refinement
 )
 from script_magic.github_integration import upload_script_to_gist, GitHubIntegrationError
@@ -21,7 +21,7 @@ from script_magic.logger import get_logger
 # Set up logger
 logger = get_logger(__name__)
 
-def create_script(script_name: str, prompt: str, preview: bool = False, model_name: str = "openai:gpt-4o-mini") -> bool:
+def create_script(script_name: str, prompt: str, preview: bool = False, model_name: str = "gpt-4o-mini") -> bool:
     """
     Create a new Python script from a prompt and store it in a GitHub Gist.
     
@@ -29,7 +29,7 @@ def create_script(script_name: str, prompt: str, preview: bool = False, model_na
         script_name: Name of the script
         prompt: Prompt describing what the script should do
         preview: Whether to preview the script before uploading
-        model_name: The model to use for script generation (default: "openai:gpt-4o-mini")
+        model_name: The model to use for script generation (default: "gpt-4o-mini")
         
     Returns:
         bool: True if successful, False otherwise
@@ -104,8 +104,8 @@ def create_script(script_name: str, prompt: str, preview: bool = False, model_na
 @click.argument('script_name')
 @click.argument('prompt')
 @click.option('--preview', '-p', is_flag=True, help='Preview the script before creating it')
-@click.option('--model', '-m', default="openai:gpt-4o-mini", 
-              help='AI model to use for script generation (default: openai:gpt-4o-mini)')
+@click.option('--model', '-m', default="gpt-4o-mini", 
+              help='AI model to use for script generation (default: gpt-4o-mini)')
 def cli(script_name: str, prompt: str, preview: bool, model: str) -> None:
     """
     Create a new Python script from a prompt and store it in a GitHub Gist.
