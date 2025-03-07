@@ -7,60 +7,63 @@ Command-line script utility toolkit that simplifies common scripting tasks!
 
 ## Features
 
-- 🤖 **AI-Powered Script Generation**: Create Python scripts from natural language prompts using OpenAI's GPT models
-- ☁️ **GitHub Gist Integration**: Store and manage scripts in GitHub Gists for easy sharing and versioning
-- 🔄 **Simple Script Management**: Run, update, and manage your scripts with easy commands
-- 📦 **Automatic Dependency Management**: Script execution with `uv` handles dependencies automatically
-- 🚀 **Interactive Mode**: Refine generated scripts interactively before saving
-- 🔄 **Cross-Device Synchronization**: Automatically find and sync your script inventory across devices using GitHub Gists
-- 🔎 **Smart Gist Detection**: Automatically finds your existing script mappings on GitHub
-- 🌐 **Multi-Environment Support**: Works seamlessly across different machines with the same GitHub account
-- 🖋️ **Syntax Highlighting**: Built-in code editor with syntax highlighting (requires optional dependencies)
+- 🤖 **AI-Powered Script Generation**: Create Python scripts from natural language prompts using LiteLLM and Instructor, supporting various models like OpenAI, Anthropic, and others.
+- ☁️ **GitHub Gist Integration**: Store and manage scripts in GitHub Gists for easy sharing and versioning.
+- 🔄 **Simple Script Management**:  Run, update, edit, list, and delete your scripts with simple commands.
+- 📦 **Automatic Dependency Management**: Script execution with `uv` handles dependencies automatically, based on PEP 723 metadata.
+- 🚀 **Interactive Mode**: Refine generated scripts interactively before saving.
+- 🖋️ **Built-in Code Editor**:  Edit scripts directly in your terminal with a Textual-based editor, featuring syntax highlighting and AI-powered editing capabilities.
+- 🔄 **Cross-Device Synchronization**: Automatically sync your script inventory across devices using GitHub Gists.
+- 🔎 **Smart Gist Detection**: Automatically finds your existing script mappings on GitHub.
+- 🌐 **Multi-Environment Support**: Works seamlessly across different machines with the same GitHub account.
+- 📝 **PEP 723 Metadata**:  Generated scripts include PEP 723 metadata for dependency and runtime information.
+- ✨ **Enhanced Editing with AI**: Edit existing scripts using natural language instructions, powered by AI.
+- 🎛️ **Configurable Models**: Choose different AI models for script generation and editing.
+
 
 ## Installation
+
+Script Magic now uses `uv` for package management. Install `uv` first:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then, install Script Magic:
 
 ```bash
 pip install script-magic
 ```
-
-### Prerequisites
-
-- Python 3.9+
-- [uv](https://github.com/astral-sh/uv) for Python package management and script execution
-- GitHub account with a Personal Access Token
-- OpenAI API key
-
-### Quick Install
+Or, for the latest version directly from GitHub:
 
 ```bash
-# Clone the repository
+uv pip install git+https://github.com/yourusername/script-magic.git
+```
+Replace `yourusername` with the actual username.
+
+### Quick Install and Tool Install (Recommended)
+
+```bash
+# Clone the repository (Optional, but useful for development/contributing)
 git clone https://github.com/yourusername/script-magic.git
 cd script-magic
 
-# Install with uv
+# Install with uv (ensures correct environment)
 uv venv
 uv pip install -e .
 
+# Install as a tool using uv, forcing Python 3.13:
+uv tool install --force --python 3.13 script-magic@latest
+
 # Set up your environment variables
-export OPENAI_API_KEY="your-openai-api-key"
+export OPENAI_API_KEY="your-openai-api-key" # Or your LiteLLM provider key
 export MY_GITHUB_PAT="your-github-personal-access-token"
 ```
-
-### Optional Dependencies
-
-For enhanced features such as syntax highlighting in the editor:
-
-```bash
-pip install 'script-magic[syntax]'
-```
+**Important:** The `uv tool install` command creates a separate, isolated environment for Script Magic. This helps avoid dependency conflicts.  You *must* use `uv run` to execute scripts that have dependencies installed via PEP 723.
 
 ## Usage
 
-```python
-# Import the library
-from script_magic import some_function
-
-# Use the command-line tool
+```bash
 sm --help
 ```
 
@@ -69,13 +72,19 @@ sm --help
 Generate a new script from a natural language prompt:
 
 ```bash
-sm create hello-world "Create a script that prints 'Hello, World!' with timestamp"
+sm create hello-world "Create a script that prints 'Hello, World!' with a timestamp."
 ```
 
 Generate with interactive preview:
 
 ```bash
-sm create fibonacci --preview "Generate a script to print the first 10 Fibonacci numbers"
+sm create fibonacci --preview "Generate a script to print the first 10 Fibonacci numbers."
+```
+
+Specify a different AI model:
+
+```bash
+sm create list-files --model "anthropic/claude-3-opus" "List files in a directory."
 ```
 
 ### Running Scripts
@@ -86,11 +95,12 @@ Run a script that has been previously created:
 sm run hello-world
 ```
 
-Pass parameters to the script:
+Pass parameters to the script (Script Magic intelligently separates its own options from the script's arguments):
 
 ```bash
 sm run hello-world --name="John"
 ```
+Script Magic will automatically use `uv run` to execute the script in the correct environment, handling any dependencies.
 
 Force refresh from GitHub before running:
 
@@ -104,8 +114,7 @@ Run a script in a new terminal window:
 sm run visualize-data --in-terminal
 ```
 
-The `--in-terminal` (`-t`) option will run the script in a new terminal window that remains open until closed by the user.
-This is particularly useful for scripts with interactive elements or those that produce visual output.
+The `--in-terminal` (`-t`) option runs the script in a new terminal window. This is useful for scripts with interactive elements or those producing visual output.
 
 ### Listing Scripts
 
@@ -115,7 +124,7 @@ View all scripts in your inventory:
 sm list
 ```
 
-Show detailed information about your scripts:
+Show detailed information:
 
 ```bash
 sm list --verbose
@@ -126,22 +135,20 @@ Pull the latest scripts from GitHub before listing:
 ```bash
 sm list --pull
 ```
-
-Push your local script inventory to GitHub while listing:
-
+Push local changes to Github before listing:
 ```bash
 sm list --push
 ```
 
 ### Syncing Scripts
 
-Sync your local inventory to GitHub:
+Push your local inventory and scripts to GitHub:
 
 ```bash
-sm sync
+sm push
 ```
 
-Pull the latest mapping from GitHub:
+Pull the latest scripts and mapping from GitHub:
 
 ```bash
 sm pull
@@ -149,7 +156,7 @@ sm pull
 
 ### Deleting Scripts
 
-Remove a script from both local inventory and GitHub Gists:
+Remove a script:
 
 ```bash
 sm delete script-name
@@ -163,27 +170,40 @@ sm delete script-name --force
 
 ### Editing Scripts
 
-Edit a script with syntax highlighting (if dependencies are installed):
+Edit a script using the built-in Textual editor:
 
 ```bash
-script-magic edit myscript
+sm edit myscript
+```
+
+Use AI to modify the script during editing (Ctrl+P within the editor):
+
+1.  Press Ctrl+P in the editor.
+2.  Enter instructions like "Add a function to calculate the average."
+3.  The AI will modify the script based on your instructions.
+
+Specify a different model for AI-assisted editing:
+
+```bash
+sm edit myscript --model "anthropic/claude-3-opus"
 ```
 
 ## GitHub Integration
 
 Script Magic automatically handles GitHub synchronization:
 
-- First-time users: Script Magic creates a new private Gist to store your script inventory
-- Existing users: Script Magic finds your existing script inventory Gists automatically
-- Multiple devices: Script Magic detects existing mappings and asks which version to keep
+-   **First-time users**: Creates a new private Gist to store your script inventory.
+-   **Existing users**: Finds your existing script inventory Gists automatically.
+-   **Multiple devices**: Detects existing mappings and asks which version to keep.
 
 ## Configuration
 
 Script Magic stores configuration in the `~/.sm` directory:
 
-- `~/.sm/mapping.json`: Maps script names to GitHub Gist IDs
-- `~/.sm/gist_id.txt`: Stores the ID of the GitHub Gist containing your mapping file
-- `~/.sm/logs/`: Log files for debugging
+-   `~/.sm/mapping.json`: Maps script names to GitHub Gist IDs.
+-   `~/.sm/gist_id.txt`: Stores the ID of the Gist containing your mapping file.
+-   `~/.sm/logs/`: Log files for debugging.
+-   `~/.sm/scripts/`: Local copies of your scripts.
 
 ## Structure
 
@@ -191,34 +211,38 @@ Script Magic stores configuration in the `~/.sm` directory:
 script-magic/
 ├── src/
 │   └── script_magic/
-│       ├── __init__.py                # CLI entry point with command registration
-│       ├── create.py                  # Script creation command
-│       ├── run.py                     # Script execution command
-│       ├── list.py                    # Script listing command
-│       ├── delete.py                  # Script deletion command
-│       ├── github_integration.py      # GitHub Gist API integration
-│       ├── github_gist_finder.py      # Finds existing mapping Gists
-│       ├── pydantic_ai_integration.py # AI script generation
-│       ├── mapping_manager.py         # Script mapping management
-│       ├── mapping_setup.py           # Initializes mapping with GitHub sync
-│       ├── logger.py                  # Logging configuration
-│       └── rich_output.py             # Terminal output formatting
+│       ├── __init__.py                # CLI entry point & command registration.
+│       ├── ai_integration.py          # AI script generation and editing.
+│       ├── create.py                  # `create` command implementation.
+│       ├── delete.py                  # `delete` command implementation.
+│       ├── edit.py                    # `edit` command implementation (Textual TUI).
+│       ├── github_gist_finder.py      # Finds existing mapping Gists.
+│       ├── github_integration.py      # GitHub Gist API interaction.
+│       ├── list.py                    # `list` command implementation.
+│       ├── logger.py                  # Logging setup.
+│       ├── mapping_manager.py         # Manages the script mapping (local & GitHub).
+│       ├── mapping_setup.py           # Initializes mapping with GitHub sync.
+│       ├── pep723.py                  # PEP 723 metadata parsing and updating.
+│       ├── rich_output.py             # Rich-based console output utilities.
+│       └── run.py                     # `run` command implementation.
+├── README.md
+└── ...
 ```
 
 ## Environment Variables
 
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `MY_GITHUB_PAT`: GitHub Personal Access Token with Gist permissions
+-   `OPENAI_API_KEY`: Your OpenAI API key (or key for your chosen LiteLLM provider).
+-   `MY_GITHUB_PAT`: GitHub Personal Access Token with `gist` scope.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome!  Please submit a Pull Request.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1.  Fork the repository.
+2.  Create your feature branch (`git checkout -b feature/amazing-feature`).
+3.  Commit your changes (`git commit -m 'Add some amazing feature'`).
+4.  Push to the branch (`git push origin feature/amazing-feature`).
+5.  Open a Pull Request.
 
 ## License
 
@@ -226,15 +250,18 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- [PydanticAI](https://ai.pydantic.dev/) for AI integration
-- [Click](https://click.palletsprojects.com/) for the CLI interface
-- [PyGitHub](https://github.com/PyGithub/PyGithub) for GitHub API integration
-- [Rich](https://github.com/Textualize/rich) for beautiful terminal output
+-   [Instructor](https://github.com/jxnl/instructor)
+-   [LiteLLM](https://github.com/BerriAI/litellm)
+-   [Click](https://click.palletsprojects.com/)
+-   [PyGitHub](https://github.com/PyGithub/PyGithub)
+-   [Rich](https://github.com/Textualize/rich)
+-   [Textual](https://github.com/Textualize/textual)
+-   [uv](https://github.com/astral-sh/uv)
 
-## Development 
+## Development
 
 To install development dependencies:
 
 ```bash
-pip install -e '.[dev,syntax]'
+uv pip install -e '.[dev,syntax]'
 ```
