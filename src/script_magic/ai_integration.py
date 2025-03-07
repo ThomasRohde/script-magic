@@ -4,9 +4,8 @@ Instructor integration for script generation.
 This module provides functions to generate Python scripts using Instructor and LiteLLM,
 with support for interactive refinement and PEP 723 metadata inclusion.
 """
-import os
 import re
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict
 from datetime import datetime
 from script_magic.pep723 import update_script_with_corrected_metadata
 import instructor

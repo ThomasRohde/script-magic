@@ -10,7 +10,7 @@ import click
 from typing import Dict, Any
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, TextArea, Static, Input, ProgressBar
+from textual.widgets import Header, Footer, TextArea, Static, Input, ProgressBar, LoadingIndicator, LoadingIndicator
 from textual.containers import Container
 from textual import events
 from textual.binding import Binding
@@ -36,29 +36,33 @@ class ProgressModal(ModalScreen):
     ProgressModal {
         align: center middle;
     }
-    
+
     #progress-container {
         width: 80%; 
         height: auto;
         background: $surface;
         padding: 1 2;
         border: solid $primary;
+        layout: vertical;           /* Ensures vertical stacking and full-width children */
+        align-horizontal: center;   /* Centers content horizontally within the container */
     }
-    
+
     #progress-title {
         width: 100%;
         content-align: center middle;
         text-align: center;
     }
-    
+
     #progress-message {
         width: 100%;
         text-align: center;
         margin: 1 0;
     }
-    
-    #progress-bar {
+
+    #loading-indicator {
         width: 100%;
+        content-align: center middle;
+        height: 3;
         margin: 1 0;
     }
     """
@@ -73,7 +77,7 @@ class ProgressModal(ModalScreen):
         with Container(id="progress-container"):
             yield Static(self.title, id="progress-title")
             yield Static(self.message, id="progress-message")
-            yield ProgressBar(id="progress-bar", show_eta=False, show_percentage=False)
+            yield LoadingIndicator(id="loading-indicator")
     
     def update_message(self, message: str) -> None:
         """Update the progress message."""
@@ -81,12 +85,8 @@ class ProgressModal(ModalScreen):
         message_widget.update(message)
     
     def pulse(self) -> None:
-        """Make the progress bar pulse to show activity."""
-        progress_bar = self.query_one("#progress-bar", ProgressBar)
-        if progress_bar.total is None:
-            # For indeterminate progress, make it pulse by toggling between 0 and a small value
-            current = progress_bar.progress or 0
-            progress_bar.update(progress=0 if current > 0 else 0.01)
+        """No longer needed with LoadingIndicator."""
+        pass
 
 class PromptModal(ModalScreen):
     """A modal screen for entering a prompt."""
