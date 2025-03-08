@@ -79,6 +79,7 @@ class AnthropicProvider(AIModelProvider):
         return client.chat.completions.create(
             model=model,
             messages=messages,
+            max_tokens=8192,
             response_model=response_model,
             **kwargs
         )
