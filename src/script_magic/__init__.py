@@ -1,6 +1,7 @@
 import click
 import logging
 import sys
+import pip_system_certs.wrapt_requests
 
 # Import command implementations
 from script_magic.create import cli as create_command

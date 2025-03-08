@@ -18,6 +18,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
+    "pip-system-certs>=4.0",
     "click>=8.1.8",
     "instructor>=1.7.2",
     "litellm>=1.63.0",
