@@ -3,12 +3,20 @@
 import os
 import json
 import logging
+import requests
 from typing import Dict, Optional, Tuple, Any
 from github import Github, GithubException
 from github.InputFileContent import InputFileContent
 
 # Set up logger
 logger = logging.getLogger(__name__)
+
+requests.packages.urllib3.disable_warnings()  # Optional: suppress warnings
+original_request = requests.Session.request
+def patched_request(*args, **kwargs):
+    kwargs['verify'] = False  # Force verify=False
+    return original_request(*args, **kwargs)
+requests.Session.request = patched_request
 
 class GitHubIntegrationError(Exception):
     """Custom exception for GitHub integration errors."""
