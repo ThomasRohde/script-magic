@@ -1,7 +1,7 @@
 """
 Implementation of the 'edit' command for Script Magic.
 
-This module allows users to edit scripts using a Textual TUI.
+This module allows users to edit scripts using a Textual TUI with AI assistance.
 """
 
 import os
@@ -10,7 +10,7 @@ import click
 from typing import Dict, Any
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, TextArea, Static, Input, ProgressBar, LoadingIndicator, LoadingIndicator
+from textual.widgets import Header, Footer, TextArea, Static, Input, ProgressBar, LoadingIndicator
 from textual.containers import Container
 from textual import events
 from textual.binding import Binding
@@ -24,10 +24,14 @@ from script_magic.github_integration import (
 )
 from script_magic.rich_output import console
 from script_magic.logger import get_logger
-from script_magic.ai_integration import DEFAULT_MODEL
+from script_magic.model_providers import ModelManager
 
 # Set up logger
 logger = get_logger(__name__)
+
+# Initialize model manager and get default model
+model_manager = ModelManager()
+DEFAULT_MODEL = model_manager.DEFAULT_MODELS["default"]
 
 class ProgressModal(ModalScreen):
     """A modal screen showing progress for AI operations."""
@@ -632,7 +636,7 @@ Description: Add description here
 \"\"\"
 
 def main():
-    \"\"\"Main function\"\"\"
+    \"\"\"Main function\"\"\" 
     print("Hello from {script_name}!")
 
 if __name__ == "__main__":
@@ -682,7 +686,9 @@ if __name__ == "__main__":
 
 @click.command()
 @click.argument('script_name')
-@click.option('--model', '-m', default=DEFAULT_MODEL, help=f'Model to use for AI assistance (default: {DEFAULT_MODEL})')
+@click.option('--model', '-m', default=DEFAULT_MODEL, 
+             help=f'Model to use for AI assistance. Available choices: {", ".join(model_manager.DEFAULT_MODELS.keys())}. '
+                  f'Default: {DEFAULT_MODEL}')
 def cli(script_name: str, model: str) -> None:
     """
     Edit an existing Python script in a text editor.

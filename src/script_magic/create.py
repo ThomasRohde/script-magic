@@ -1,7 +1,7 @@
 """
 Implementation of the 'create' command for Script Magic.
 
-This module handles creating new scripts from prompts using PydanticAI,
+This module handles creating new scripts from prompts using AI model providers,
 uploading them to GitHub Gists, and managing the local mapping.
 """
 
@@ -11,8 +11,9 @@ import click
 
 # Import integration modules
 from script_magic.ai_integration import (
-    process_prompt, display_script, interactive_refinement, DEFAULT_MODEL
+    process_prompt, display_script, interactive_refinement
 )
+from script_magic.model_providers import ModelManager
 from script_magic.github_integration import upload_script_to_gist, GitHubIntegrationError
 from script_magic.mapping_manager import get_mapping_manager
 from script_magic.rich_output import console, display_heading
@@ -20,6 +21,10 @@ from script_magic.logger import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
+
+# Initialize model manager and get default model
+model_manager = ModelManager()
+DEFAULT_MODEL = model_manager.DEFAULT_MODELS["default"]
 
 def create_script(script_name: str, prompt: str, preview: bool = False, model: str = DEFAULT_MODEL) -> bool:
     """
@@ -103,7 +108,9 @@ def create_script(script_name: str, prompt: str, preview: bool = False, model: s
 @click.argument('script_name')
 @click.argument('prompt')
 @click.option('--preview', '-p', is_flag=True, help='Preview the script before creating it')
-@click.option('--model', '-m', default=DEFAULT_MODEL, help=f'Model to use for generation (default: {DEFAULT_MODEL})')
+@click.option('--model', '-m', default=DEFAULT_MODEL, 
+             help=f'Model to use for generation. Available choices: {", ".join(model_manager.DEFAULT_MODELS.keys())}. '
+                  f'Default: {DEFAULT_MODEL}')
 def cli(script_name: str, prompt: str, preview: bool, model: str) -> None:
     """
     Create a new Python script from a prompt and store it in a GitHub Gist.
@@ -113,10 +120,6 @@ def cli(script_name: str, prompt: str, preview: bool, model: str) -> None:
     PROMPT: Description of what the script should do
     """
     # Check environment variables
-    if not os.getenv("OPENAI_API_KEY"):
-        console.print("[bold red]Error:[/bold red] OPENAI_API_KEY environment variable is not set")
-        sys.exit(1)
-    
     if not os.getenv("MY_GITHUB_PAT"):
         console.print("[bold red]Error:[/bold red] MY_GITHUB_PAT environment variable is not set")
         sys.exit(1)

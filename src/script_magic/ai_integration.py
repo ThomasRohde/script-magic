@@ -1,15 +1,14 @@
 """
 Instructor integration for script generation.
 
-This module provides functions to generate Python scripts using Instructor and LiteLLM,
+This module provides functions to generate Python scripts using various AI model providers,
 with support for interactive refinement and PEP 723 metadata inclusion.
 """
 import re
 from typing import Optional, Dict
 from datetime import datetime
 from script_magic.pep723 import update_script_with_corrected_metadata
-import instructor
-from litellm import completion
+from script_magic.model_providers import ModelManager
 from pydantic import BaseModel, Field
 
 try:
@@ -20,11 +19,6 @@ except ImportError:
     import pathlib
     sys.path.append(str(pathlib.Path(__file__).parent.parent))
     from script_magic.rich_output import display_code, display_heading
-
-# Default model to use if none specified
-DEFAULT_MODEL = "anthropic/claude-3-7-sonnet-20250219"
-# DEFAULT_MODEL = "openai/gpt-4o-mini"
-# DEFAULT_MODEL = "openai/gpt-4o"
 
 # Create a model for the script generation
 class ScriptResult(BaseModel):
@@ -40,8 +34,8 @@ class ScriptResult(BaseModel):
         description="Tags categorizing the script's functionality and origin"
     )
 
-# Set up the Instructor client with LiteLLM
-client = instructor.from_litellm(completion)
+# Initialize the model manager
+model_manager = ModelManager()
 
 # System prompts for generation and editing
 SCRIPT_GENERATION_PROMPT = """
@@ -183,26 +177,23 @@ def extract_metadata_tags(script: str) -> list:
     # If no tags were extracted, use defaults
     return tags if tags else default_tags
 
-def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None, model: str = DEFAULT_MODEL) -> tuple[str, str, list[str]]:
+def generate_script(prompt: str, user_vars: Optional[Dict[str, str]] = None, model: str = "default") -> tuple[str, str, list[str]]:
     """
     Generate a Python script based on the provided prompt.
     
     Args:
         prompt: The prompt describing what the script should do
         user_vars: Optional variables to include in the script (not replacing in prompt)
-        model: The model to use for generation (default is defined by DEFAULT_MODEL)
+        model: The model to use for generation (can be a model name or alias)
         
     Returns:
         A tuple containing (code, description, tags)
     """
     try:
-        # Use Instructor with LiteLLM to generate the script
-        result = client.chat.completions.create(
-            model=model,  # Use the specified model
-            messages=[
-                {"role": "system", "content": SCRIPT_GENERATION_PROMPT},
-                {"role": "user", "content": prompt}
-            ],
+        # Use model manager to generate the script
+        result = model_manager.generate_completion(
+            prompt=SCRIPT_GENERATION_PROMPT + "\n\nUser request: " + prompt,
+            model=model,
             response_model=ScriptResult
         )
         
@@ -232,14 +223,14 @@ print("Error: Failed to generate script")
 """
         return error_code, "Error generating script", ["generated", "error"]
 
-def edit_script(script: str, instructions: str, model: str = DEFAULT_MODEL) -> tuple[str, str, list[str]]:
+def edit_script(script: str, instructions: str, model: str = "default") -> tuple[str, str, list[str]]:
     """
     Edit an existing Python script based on the provided instructions.
     
     Args:
         script: The original script to modify
         instructions: Instructions describing what changes to make
-        model: The model to use for editing (default is defined by DEFAULT_MODEL)
+        model: The model to use for editing (can be a model name or alias)
         
     Returns:
         A tuple containing (updated_code, description, tags)
@@ -257,13 +248,10 @@ Please modify the script according to these instructions:
 
 Return the complete modified script maintaining all necessary PEP 723 metadata.
 """
-        # Use Instructor with LiteLLM to edit the script
-        result = client.chat.completions.create(
-            model=model,  # Use the specified model
-            messages=[
-                {"role": "system", "content": SCRIPT_EDIT_PROMPT},
-                {"role": "user", "content": prompt}
-            ],
+        # Use model manager for the edit
+        result = model_manager.generate_completion(
+            prompt=SCRIPT_EDIT_PROMPT + "\n\n" + prompt,
+            model=model,
             response_model=ScriptResult
         )
         
@@ -301,14 +289,14 @@ Return the complete modified script maintaining all necessary PEP 723 metadata.
 """
         return error_code, "Error editing script", ["edited", "error"]
 
-def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None, model: str = DEFAULT_MODEL) -> tuple[str, str, list[str]]:
+def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = None, model: str = "default") -> tuple[str, str, list[str]]:
     """
     Generate a script with interactive refinement.
     
     Args:
         prompt: The initial prompt describing what the script should do
         user_vars: Optional variables to replace in the prompt
-        model: The model to use for generation (default is defined by DEFAULT_MODEL)
+        model: The model to use for generation (can be a model name or alias)
         
     Returns:
         A tuple containing (code, description, tags)
@@ -329,7 +317,7 @@ def interactive_refinement(prompt: str, user_vars: Optional[Dict[str, str]] = No
         current_script, description, tags = generate_script(full_prompt, user_vars, model)
 
 def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None, 
-                  interactive: bool = False, model: str = DEFAULT_MODEL) -> tuple[str, str, list[str]]:
+                  interactive: bool = False, model: str = "default") -> tuple[str, str, list[str]]:
     """
     Process a prompt to generate a Python script.
     
@@ -337,7 +325,7 @@ def process_prompt(prompt: str, user_vars: Optional[Dict[str, str]] = None,
         prompt: The prompt describing what the script should do
         user_vars: Optional variables to replace in the prompt
         interactive: Whether to enable interactive refinement
-        model: The model to use for generation (default is defined by DEFAULT_MODEL)
+        model: The model to use for generation (can be a model name or alias)
         
     Returns:
         A tuple containing (code, description, tags)

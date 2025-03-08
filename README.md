@@ -7,7 +7,11 @@ Command-line script utility toolkit that simplifies common scripting tasks!
 
 ## Features
 
-- 🤖 **AI-Powered Script Generation**: Create Python scripts from natural language prompts using LiteLLM and Instructor, supporting various models like OpenAI, Anthropic, and others.
+- 🤖 **AI-Powered Script Generation**: Create Python scripts from natural language prompts using LiteLLM and Instructor, supporting:
+  - OpenAI models
+  - Anthropic Claude models
+  - Google Gemini models
+
 - ☁️ **GitHub Gist Integration**: Store and manage scripts in GitHub Gists for easy sharing and versioning.
 - 🔄 **Simple Script Management**:  Run, update, edit, list, and delete your scripts with simple commands.
 - 📦 **Automatic Dependency Management**: Script execution with `uv` handles dependencies automatically, based on PEP 723 metadata.
@@ -58,6 +62,10 @@ uv tool install --force --python 3.13 script-magic@latest
 # Set up your environment variables
 export OPENAI_API_KEY="your-openai-api-key" # Or your LiteLLM provider key
 export MY_GITHUB_PAT="your-github-personal-access-token"
+
+# Optional: Set up additional model provider keys if needed
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export GOOGLE_API_KEY="your-gemini-key"
 ```
 **Important:** The `uv tool install` command creates a separate, isolated environment for Script Magic. This helps avoid dependency conflicts.  You *must* use `uv run` to execute scripts that have dependencies installed via PEP 723.
 
