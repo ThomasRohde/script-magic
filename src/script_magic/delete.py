@@ -7,9 +7,10 @@ and the GitHub Gists where they are stored.
 
 import click
 import sys
+import os
 from github import GithubException
 
-from script_magic.mapping_manager import get_mapping_manager
+from script_magic.mapping_manager import get_mapping_manager, LOCAL_SCRIPTS_DIR
 from script_magic.github_integration import get_github_client, GitHubIntegrationError
 from script_magic.rich_output import console, display_heading
 from script_magic.logger import get_logger
@@ -79,6 +80,20 @@ def delete_script(script_name: str, force: bool = False) -> bool:
                 
                 # Confirm whether to continue with local deletion
                 if not force and not click.confirm("Continue with local deletion?", default=True):
+                    console.print("[yellow]Deletion canceled.[/yellow]")
+                    return False
+        
+        # Delete local script file if it exists
+        local_file_path = os.path.join(LOCAL_SCRIPTS_DIR, f"{script_name}.py")
+        if os.path.exists(local_file_path):
+            try:
+                console.print("[blue]Removing local script file...[/blue]")
+                os.remove(local_file_path)
+                console.print("[green]✓ Local script file deleted successfully[/green]")
+            except Exception as e:
+                console.print(f"[bold yellow]Warning:[/bold yellow] Could not delete local script file: {str(e)}")
+                logger.warning(f"Failed to delete local script file {local_file_path}: {str(e)}")
+                if not force and not click.confirm("Continue with mapping deletion?", default=True):
                     console.print("[yellow]Deletion canceled.[/yellow]")
                     return False
         
