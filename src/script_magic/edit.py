@@ -288,7 +288,7 @@ class ScriptEditor(App):
                 logger.error(f"Failed to save script locally: {str(e)}", exc_info=True)
                 self.notify(f"Error saving locally: {str(e)}", timeout=3, severity="error")
             
-            self.notify(f"✓ Script saved successfully!", timeout=3)
+            self.notify(f"✓ Script saved successfully!", timeout=3)  # noqa: F541
             self.saved = True
             
             # Update original content to mark as saved
@@ -405,7 +405,7 @@ class ScriptEditor(App):
                     return None, None, None
             
             # Create and run the worker (use thread=True since AI processing is CPU-intensive)
-            worker = self.run_worker(ai_worker, thread=True)
+            worker = self.run_worker(ai_worker, thread=True)  # noqa: F841
             
         except Exception as e:
             # Clean up and reset on error
@@ -568,7 +568,7 @@ class ScriptEditor(App):
     def dismiss_progress_modal(self) -> None:
         """Helper method to dismiss the progress modal."""
         try:
-            progress_modal = self.get_screen(ProgressModal)
+            progress_modal = self.get_screen(ProgressModal)  # noqa: F841
             self.pop_screen()
         except Exception as e:
             logger.debug(f"Could not dismiss progress modal: {e}")
