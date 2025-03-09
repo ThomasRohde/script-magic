@@ -1,0 +1,76 @@
+{
+    // Copilot custom instructions settings
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+    "github.copilot.chat.codeGeneration.instructions": [
+        {
+            "text": "Follow PEP 8 style guidelines."
+        },
+        {
+            "text": "Use type hints for all functions."
+        },
+        {
+            "text": "Include docstrings for all public functions and methods."
+        },
+        {
+            "text": "Prefer modern Python features (f-strings, walrus operator, etc)."
+        },
+        {
+            "text": "Import libraries at the top of the file."
+        }
+    ],
+    "github.copilot.chat.testGeneration.instructions": [
+        {
+            "text": "Use pytest for all test cases."
+        },
+        {
+            "text": "Include docstrings explaining what is being tested."
+        },
+        {
+            "text": "Create comprehensive tests with edge cases."
+        },
+        {
+            "text": "Mock external dependencies when appropriate."
+        }
+    ],
+    "github.copilot.chat.reviewSelection.instructions": [
+        {
+            "text": "Focus on identifying potential bugs, performance issues, and security concerns."
+        },
+        {
+            "text": "Suggest improvements for readability and maintainability."
+        },
+        {
+            "text": "Check for proper error handling and edge cases."
+        }
+    ],
+    "github.copilot.chat.commitMessageGeneration.instructions": [
+        {
+            "text": "Follow conventional commit format (feat, fix, chore, docs, etc)."
+        },
+        {
+            "text": "Keep messages concise but descriptive of all changes made."
+        },
+        {
+            "text": "Reference issue numbers where applicable."
+        }
+    ],
+
+    // Editor settings
+    "editor.rulers": [
+        88
+    ],
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.suggestSelection": "first",
+    "editor.wordWrap": "on",
+    "editor.renderWhitespace": "all",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    // Search settings
+    "search.exclude": {
+        "**/__pycache__": true,
+        "**/.venv": true,
+        "**/.pytest_cache": true,
+        "**/.coverage": true
+    }
+}

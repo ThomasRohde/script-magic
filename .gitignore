@@ -58,7 +58,6 @@ env.bak/
 venv.bak/
 
 # VS Code
-.vscode/
 *.code-workspace
 
 # PyCharm
