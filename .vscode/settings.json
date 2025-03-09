@@ -16,6 +16,33 @@
         },
         {
             "text": "Import libraries at the top of the file."
+        },
+        {
+            "text": "Write explicit code - avoid 'magic' when clear alternatives exist."
+        },
+        {
+            "text": "Use one statement per line for better readability."
+        },
+        {
+            "text": "Prefer 'if x:' over 'if x == True:' and 'if x is None:' over 'if x == None:'."
+        },
+        {
+            "text": "Use 'with' statements for file operations and resource management."
+        },
+        {
+            "text": "Prefer list/dict/set comprehensions for simple transformations."
+        },
+        {
+            "text": "Never iterate over a collection while modifying it."
+        },
+        {
+            "text": "Use parentheses for line continuations rather than backslashes."
+        },
+        {
+            "text": "Use 'in' syntax for dictionary membership checks instead of .has_key()."
+        },
+        {
+            "text": "Use enumerate() when you need both index and value from an iterable."
         }
     ],
     "github.copilot.chat.testGeneration.instructions": [
@@ -41,6 +68,15 @@
         },
         {
             "text": "Check for proper error handling and edge cases."
+        },
+        {
+            "text": "Ensure code follows Pythonic idioms and PEP 8 guidelines."
+        },
+        {
+            "text": "Flag any non-idiomatic patterns like modifying collections during iteration."
+        },
+        {
+            "text": "Verify proper use of context managers for resource handling."
         }
     ],
     "github.copilot.chat.commitMessageGeneration.instructions": [
@@ -66,6 +102,14 @@
     "editor.renderWhitespace": "all",
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
+    // Python specific settings
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.pycodestyleEnabled": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "--line-length=88"
+    ],
     // Search settings
     "search.exclude": {
         "**/__pycache__": true,
