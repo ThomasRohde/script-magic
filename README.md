@@ -7,23 +7,22 @@ Command-line script utility toolkit that simplifies common scripting tasks!
 
 ## Features
 
-- 🤖 **AI-Powered Script Generation**: Create Python scripts from natural language prompts using LiteLLM and Instructor, supporting:
+- 🤖 **AI-Powered Script Generation**: Create Python scripts from natural language prompts using Instructor, supporting:
   - OpenAI models
   - Anthropic Claude models
   - Google Gemini models
 
 - ☁️ **GitHub Gist Integration**: Store and manage scripts in GitHub Gists for easy sharing and versioning.
-- 🔄 **Simple Script Management**:  Run, update, edit, list, and delete your scripts with simple commands.
+- 🔄 **Simple Script Management**: Run, update, edit, list, and delete your scripts with simple commands.
 - 📦 **Automatic Dependency Management**: Script execution with `uv` handles dependencies automatically, based on PEP 723 metadata.
 - 🚀 **Interactive Mode**: Refine generated scripts interactively before saving.
-- 🖋️ **Built-in Code Editor**:  Edit scripts directly in your terminal with a Textual-based editor, featuring syntax highlighting and AI-powered editing capabilities.
+- 🖋️ **Built-in Code Editor**: Edit scripts directly in your terminal with a Textual-based editor, featuring syntax highlighting and AI-powered editing capabilities.
 - 🔄 **Cross-Device Synchronization**: Automatically sync your script inventory across devices using GitHub Gists.
 - 🔎 **Smart Gist Detection**: Automatically finds your existing script mappings on GitHub.
 - 🌐 **Multi-Environment Support**: Works seamlessly across different machines with the same GitHub account.
-- 📝 **PEP 723 Metadata**:  Generated scripts include PEP 723 metadata for dependency and runtime information.
+- 📝 **PEP 723 Metadata**: Generated scripts include PEP 723 metadata for dependency and runtime information.
 - ✨ **Enhanced Editing with AI**: Edit existing scripts using natural language instructions, powered by AI.
 - 🎛️ **Configurable Models**: Choose different AI models for script generation and editing.
-
 
 ## Installation
 
@@ -38,6 +37,7 @@ Then, install Script Magic:
 ```bash
 pip install script-magic
 ```
+
 Or, for the latest version directly from GitHub:
 
 ```bash
@@ -60,20 +60,29 @@ uv pip install -e .
 uv tool install --force --python 3.13 script-magic@latest
 
 # Set up your environment variables
-export OPENAI_API_KEY="your-openai-api-key" # Or your LiteLLM provider key
+export OPENAI_API_KEY="your-openai-api-key"
 export MY_GITHUB_PAT="your-github-personal-access-token"
 
 # Optional: Set up additional model provider keys if needed
 export ANTHROPIC_API_KEY="your-anthropic-key"
 export GOOGLE_API_KEY="your-gemini-key"
 ```
-**Important:** The `uv tool install` command creates a separate, isolated environment for Script Magic. This helps avoid dependency conflicts.  You *must* use `uv run` to execute scripts that have dependencies installed via PEP 723.
+**Important:** The `uv tool install` command creates a separate, isolated environment for Script Magic. This helps avoid dependency conflicts. You *must* use `uv run` to execute scripts that have dependencies installed via PEP 723.
 
 ## Usage
 
+For a complete list of commands and options:
 ```bash
 sm --help
 ```
+
+### Getting Started
+
+First-time users will be guided through setting up GitHub integration. Script Magic will:
+
+1. Check for a GitHub Personal Access Token in the `MY_GITHUB_PAT` environment variable
+2. Create a new private Gist or find your existing script inventory Gist
+3. Set up local configuration files in `~/.sm/`
 
 ### Creating Scripts
 
@@ -94,6 +103,11 @@ Specify a different AI model:
 ```bash
 sm create list-files --model "anthropic/claude-3-opus" "List files in a directory."
 ```
+
+Scripts are automatically:
+- Generated with PEP 723 metadata (dependencies, Python version)
+- Uploaded to GitHub Gists for version control and sharing
+- Added to your local script inventory
 
 ### Creating Script Stubs
 
@@ -148,6 +162,16 @@ sm run visualize-data --in-terminal
 ```
 
 The `--in-terminal` (`-t`) option runs the script in a new terminal window. This is useful for scripts with interactive elements or those producing visual output.
+
+Full options:
+```bash
+sm run hello-world --refresh --verbose --dry-run
+```
+
+Script Magic intelligently separates its options from script arguments. You can also use `--` to explicitly separate them:
+```bash
+sm run hello-world --refresh -- --arg-for-script
+```
 
 ### Listing Scripts
 
@@ -211,15 +235,40 @@ sm edit myscript
 
 Use AI to modify the script during editing (Ctrl+P within the editor):
 
-1.  Press Ctrl+P in the editor.
-2.  Enter instructions like "Add a function to calculate the average."
-3.  The AI will modify the script based on your instructions.
+1. Press Ctrl+P in the editor.
+2. Enter instructions like "Add a function to calculate the average."
+3. The AI will modify the script based on your instructions.
 
 Specify a different model for AI-assisted editing:
 
 ```bash
 sm edit myscript --model "anthropic/claude-3-opus"
 ```
+
+### Understanding PEP 723 Metadata
+
+All scripts generated by Script Magic include PEP 723 metadata, which looks like:
+
+```python
+# /// script
+# description = "Description of what the script does"
+# authors = ["Script-Magic AI Generator"]
+# date = "2023-09-15"
+# requires-python = ">=3.9"
+# dependencies = [
+#     "requests>=2.25.1",
+#     "pandas>=1.3.0",
+# ]
+# tags = ["generated", "script-magic", "data-processing"]
+# ///
+
+# Generated from the prompt: "Process CSV data from a URL"
+```
+
+This metadata allows Script Magic to:
+- Install required dependencies using `uv`
+- Track script creation and modification dates
+- Organize scripts by tags and categorize them appropriately
 
 ## GitHub Integration
 
@@ -228,6 +277,8 @@ Script Magic automatically handles GitHub synchronization:
 -   **First-time users**: Creates a new private Gist to store your script inventory.
 -   **Existing users**: Finds your existing script inventory Gists automatically.
 -   **Multiple devices**: Detects existing mappings and asks which version to keep.
+-   **Local caching**: Maintains local copies of scripts for offline use.
+-   **Smart push/pull**: Synchronizes only changed scripts to minimize API calls.
 
 ## Configuration
 
@@ -258,24 +309,64 @@ script-magic/
 │       ├── pep723.py                  # PEP 723 metadata parsing and updating.
 │       ├── rich_output.py             # Rich-based console output utilities.
 │       └── run.py                     # `run` command implementation.
-├── README.md
-└── ...
 ```
 
 ## Environment Variables
 
 -   `OPENAI_API_KEY`: Your OpenAI API key (or key for your chosen LiteLLM provider).
 -   `MY_GITHUB_PAT`: GitHub Personal Access Token with `gist` scope.
+-   `ANTHROPIC_API_KEY`: Optional key for using Claude models.
+-   `GOOGLE_API_KEY`: Optional key for using Gemini models.
+-   `SM_EDITOR`: Optional override for the default code editor.
+-   `DEBUG_SM`: Set to any value to enable debug logging.
+
+## Advanced Usage
+
+### Custom AI Models
+
+Script Magic supports multiple AI providers:
+
+```bash
+# Use OpenAI GPT-4
+sm create new-script --model "openai/gpt-4" "Prompt..."
+
+# Use Claude 3 Opus
+sm create new-script --model "anthropic/claude-3-opus" "Prompt..."
+
+# Use Gemini Pro
+sm create new-script --model "google/gemini-pro" "Prompt..."
+```
+
+### Debug Mode
+
+Enable debug logging to see detailed information:
+
+```bash
+sm --debug list
+```
+
+Or set permanently with an environment variable:
+
+```bash
+export DEBUG_SM=1
+```
+
+Debug logs are available in: `~/.sm/logs/script-magic.log`
+
+### Working Offline
+
+Script Magic caches scripts locally in `~/.sm/scripts/`. If GitHub is unavailable,
+you can still work with cached scripts.
 
 ## Contributing
 
-Contributions are welcome!  Please submit a Pull Request.
+Contributions are welcome! Please submit a Pull Request.
 
-1.  Fork the repository.
-2.  Create your feature branch (`git checkout -b feature/amazing-feature`).
-3.  Commit your changes (`git commit -m 'Add some amazing feature'`).
-4.  Push to the branch (`git push origin feature/amazing-feature`).
-5.  Open a Pull Request.
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes (`git commit -m 'Add some amazing feature'`).
+4. Push to the branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
 
 ## License
 
@@ -284,7 +375,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 -   [Instructor](https://github.com/jxnl/instructor)
--   [LiteLLM](https://github.com/BerriAI/litellm)
 -   [Click](https://click.palletsprojects.com/)
 -   [PyGitHub](https://github.com/PyGithub/PyGithub)
 -   [Rich](https://github.com/Textualize/rich)
