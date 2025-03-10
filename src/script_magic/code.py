@@ -127,7 +127,17 @@ def open_editor(file_path: str, editor_cmd: Optional[str] = None) -> bool:
                     editor = os.environ.get("EDITOR", "vim")
 
         # Format the command to open the file
-        if "{}" in editor:
+        # Check if the editor is VS Code to add folder context
+        is_vscode = any(vs_term in editor.lower() for vs_term in ["code", "vscode"])
+
+        if is_vscode:
+            # For VS Code, open both the file and its parent folder for better navigation
+            parent_folder = str(Path(file_path).parent)
+            if "{}" in editor:
+                cmd = editor.format(f"-r {parent_folder} -g \"{file_path}\"")
+            else:
+                cmd = f'{editor} -r "{parent_folder}" -g "{file_path}"'
+        elif "{}" in editor:
             cmd = editor.format(file_path)
         else:
             cmd = f'{editor} "{file_path}"'
