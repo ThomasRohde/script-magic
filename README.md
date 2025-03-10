@@ -95,6 +95,31 @@ Specify a different AI model:
 sm create list-files --model "anthropic/claude-3-opus" "List files in a directory."
 ```
 
+### Creating Script Stubs
+
+Create a script stub with boilerplate code that you can fill in:
+
+```bash
+sm code script-name "Description of what the script does"
+```
+
+This will:
+1. Create a script stub with PEP 723 metadata, argument parsing, and basic structure
+2. Upload to GitHub Gist (if `--publish` is used and GitHub PAT is configured)
+3. Update your local script inventory
+4. Open the script in your preferred editor
+
+Options:
+```bash
+# Skip GitHub publishing
+sm code local-script "My offline script" --no-publish
+
+# Specify a custom editor to use
+sm code new-tool "Command line utility" --editor "vim"
+```
+
+If a script with the same name already exists, Script Magic will open the existing script in your editor instead of creating a new one.
+
 ### Running Scripts
 
 Run a script that has been previously created:

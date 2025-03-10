@@ -115,7 +115,7 @@ def open_editor(file_path: str, editor_cmd: Optional[str] = None) -> bool:
         # If no editor specified, try to find VS Code
         if not editor:
             vscode_path = get_vscode_path()
-            if vscode_path:
+            if (vscode_path):
                 editor = f'"{vscode_path}"'
             else:
                 # Fall back to system default
@@ -164,6 +164,12 @@ def create_script_stub(script_name: str, description: str) -> bool:
     try:
         # Create the script directory if it doesn't exist
         os.makedirs(LOCAL_SCRIPTS_DIR, exist_ok=True)
+
+        # Check if script with the same name already exists
+        file_path = os.path.join(LOCAL_SCRIPTS_DIR, f"{script_name}.py")
+        if os.path.exists(file_path):
+            logger.info(f"Script '{script_name}' already exists at: {file_path}")
+            return file_path
 
         # Generate script content with template
         today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -305,6 +311,20 @@ def code_command(script_name: str, description: str, publish: bool, editor: Opti
         # Display header
         display_heading(f"Creating script: {script_name}", style="bold blue")
         console.print(f"[italic]Description:[/italic] {description}\n")
+
+        # First check if script with the same name already exists
+        file_path = os.path.join(LOCAL_SCRIPTS_DIR, f"{script_name}.py")
+        if os.path.exists(file_path):
+            console.print(f"[yellow]Script named '{script_name}' already exists![/yellow]")
+            console.print("[blue]Opening existing script in editor...[/blue]")
+
+            # Open the existing script in editor
+            editor_success = open_editor(file_path, editor)
+            if not editor_success:
+                console.print("[yellow]Warning: Could not open editor. You can edit the file manually.[/yellow]")
+                console.print(f"[dim]File location: {file_path}[/dim]")
+
+            return True
 
         # Step 1: Create script stub
         console.print("[bold blue]Creating script stub...[/bold blue]")
